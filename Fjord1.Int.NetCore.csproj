@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="Globals">
+    <SccProjectName>SAK</SccProjectName>
+    <SccProvider>SAK</SccProvider>
+    <SccAuxPath>SAK</SccAuxPath>
+    <SccLocalPath>SAK</SccLocalPath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <AssemblyName>Fjord1.Int.NetCore</AssemblyName>
+    <RootNamespace>Fjord1.Int.NetCore</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="A1AR.SVC.Worker.Lib" Version="1.1.4" />
+    <PackageReference Include="Dapper" Version="2.0.35" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="3.1.6" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.1.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+    <PackageReference Include="System.Data.SqlClient" Version="4.8.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="A1AR.SVC.Worker.Lib">
+      <HintPath>C:\Users\haneri.SRFLOWEBAGR\.nuget\packages\a1ar.svc.worker.lib\1.0.0-ci-20200507-105103\lib\netstandard2.0\A1AR.SVC.Worker.Lib.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>
