@@ -32,6 +32,44 @@ namespace Fjord1.Int.NetCore
                 if (!string.IsNullOrEmpty(_settings.LastUpdated)) LastSuccessFulRun = _settings.LastUpdated;
                 string[] rsClient = _settings.RsClient;
 
+                //var SQLSelectSupplier = @"WITH DistinctSuppliers AS (
+                //                        SELECT t.apar_id,
+                //                               ROW_NUMBER() OVER (PARTITION BY t.apar_id ORDER BY t.apar_id) AS RowNum
+                //                        FROM asuheader t
+                //                        INNER JOIN agladdress a1 ON (t.client = a1.Client
+                //                                                     AND t.apar_id = a1.dim_value
+                //                                                     AND a1.address_type = '1'
+                //                                                     AND a1.attribute_id = 'A5')
+                //                        WHERE t.client = @Client
+                //                          AND t.apar_gr_id IN ('IL', 'KL', 'UL', 'AP')
+                //                          AND t.status = 'N'
+                //                    )
+
+                //                    SELECT t.apar_id AS SupplierNumber,
+                //                           t.apar_name AS Name,
+                //                           t.vat_reg_no AS TaxRegistrationNumber,
+                //                           t.comp_reg_no AS OrganizationNumber,
+                //                           a1.address AS Street,
+                //                           a1.zip_code AS PostalCode,
+                //                           a1.place AS City,
+                //                           a1.country_code AS CountryName,
+                //                           t.terms_id AS PaymentTerm,
+                //                           t.pay_method AS PaymentMethod,
+                //                           t.currency AS CurrencyCode,
+                //                           0 AS Blocked,
+                //                           a1.telephone_1 AS TelephoneNumber,
+                //                           t.tax_code AS TaxCode
+                //                    FROM asuheader t
+                //                    INNER JOIN agladdress a1 ON (t.client = a1.Client
+                //                                                 AND t.apar_id = a1.dim_value
+                //                                                 AND a1.address_type = '1'
+                //                                                 AND a1.attribute_id = 'A5')
+                //                    INNER JOIN DistinctSuppliers ds ON t.apar_id = ds.apar_id
+                //                    WHERE t.client = @Client
+                //                      AND ds.RowNum = 1
+                //                      AND t.apar_gr_id IN ('IL', 'KL', 'UL', 'AP')
+                //                      AND t.status = 'N'";
+
                 var SQLSelectSupplier = @"SELECT t.apar_id as SupplierNumber,
                                         t.apar_name aS Name,
                                         t.vat_reg_no as TaxRegistrationMumber,
@@ -58,6 +96,7 @@ namespace Fjord1.Int.NetCore
                                         AND a1.client = t.client
                                         AND a1.address_type = 1
                                         ";
+
                 var SQLSelectClName = @"SELECT client_name FROM acrclient WHERE client = @Client";
 
                 for (int i = 0; i < rsClient.Length; i++)

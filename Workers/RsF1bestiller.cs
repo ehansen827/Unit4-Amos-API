@@ -32,17 +32,11 @@ namespace Fjord1.Int.NetCore
                 if (!string.IsNullOrEmpty(_settings.LastUpdated)) LastSuccessFulRun = _settings.LastUpdated;
                 string[] rsClient = _settings.RsClient;
 
-                var SQLSelectBestiller = @"Select t.att_name as Name,
-                                        t.dim_value as Value,
-                                        --rr0dim_value.rel_value AS Value,
-                                        t.description as Description,
-                                        'true' as Active
-                                        From aglvidimvalue t 
-                                        Left Outer Join aglrelvalue rr0dim_value 
-	                                        ON(t.client=rr0dim_value.client AND rr0dim_value.rel_attr_id='C0' AND rr0dim_value.attribute_id='Z21' AND t.dim_value=rr0dim_value.att_value)
-                                        where t.status='N' AND t.attribute_id='Z21' AND t.client=@Client
-                                        ";
-                var SQLSelectClName = @"Select client_name From acrclient Where client = @Client";
+                var SQLSelectBestiller = @"SELECT 'F1BESTILLER' name, dim_value value, description, 'true' active FROM agldimvalue
+                                            WHERE client = @Client
+                                            AND attribute_id = 'Z21'
+                                            AND status = 'N'";
+                var SQLSelectClName = @"SELECT client_name FROM acrclient WHERE client = @Client";
 
                 for (int i = 0; i < rsClient.Length; i++)
                 {

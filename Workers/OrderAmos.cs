@@ -28,15 +28,15 @@ namespace Fjord1.Int.NetCore
                 // Registers new orders from Amos in A1AR_Apoready
                 //var SQLStringSelectPO = @"Select OrderID, FormNo, OrderedDate, FormStatus, VendorId, uc.Name as Responsible, ua.Name as SuperInt, EstimatedTotal, InstCode, InstName, d.comment1 as Comment1, cc.CostCentreCode as Account  
                 //                        From Orderform a 
-						          //      inner join amosuser uc on CreatedBy=uc.UserID
-						          //      inner join amosuser ua on SentBy=ua.UserID
-						          //      inner join department d on a.DeptID = d.DeptID
-						          //      inner join installation i on d.InstID = i.InstID 
-                //                        inner join CostCentre cc on a.CostCentreID = cc.CostCentreID
+                //      inner join amosuser uc on CreatedBy=uc.UserID
+                //      inner join amosuser ua on SentBy=ua.UserID
+                //      inner join department d on a.DeptID = d.DeptID
+                //      inner join installation i on d.InstID = i.InstID 
+                //                        inner join CostCentre cc on a.CostCentreID = cc.CostCentreID                  {_settings.SQLInjection}
                 //                        Where Formtype = 1 and Formstatus = 1 
                 //                        and OrderedDate is not null
                 //                        and a.lastupdated > @LastSuccessFulRun";
-                var SQLStringSelectPO = @"SELECT OrderID, a.FormNo, OrderedDate, FormStatus, VendorId, uc.Name as Responsible, ua.Name as SuperInt, EstimatedTotal, i.InstCode, i.InstName, d.comment1 as Comment1, cc.CostCentreCode as Account  
+                var SQLStringSelectPO = $@"SELECT OrderID, a.FormNo, OrderedDate, FormStatus, VendorId, uc.Name as Responsible, ua.Name as SuperInt, EstimatedTotal, i.InstCode, i.InstName, d.comment1 as Comment1, cc.CostCentreCode as Account  
                                         FROM Orderform a 
 						                INNER JOIN amosuser uc ON CreatedBy = uc.UserID
 						                INNER JOIN amosuser ua ON SentBy = ua.UserID
@@ -47,7 +47,7 @@ namespace Fjord1.Int.NetCore
                                         WHERE Formtype = 1 AND Formstatus = 1 
                                         AND OrderedDate IS NOT NULL
 										AND apor.last_update IS NULL
-                                        AND a.lastupdated > DATEADD(MINUTE, @DelayMins, @LastSuccessFulRun)";
+                                        AND a.lastupdated > DATEADD(MINUTE, @DelayMins, @LastSuccessFulRun)"; //@LastSuccessFulRun
 
                 var LastSuccessFulRun = LastSucessfulRun(this.JobInstance.Id).ToString("yyyy-MM-dd HH:mm");
                 if (!string.IsNullOrEmpty(_settings.LastUpdated)) LastSuccessFulRun = _settings.LastUpdated;
@@ -82,10 +82,11 @@ namespace Fjord1.Int.NetCore
                     if (installationOk == true && supplierOk == true) InsertORD(FormNo, Vendor, Responsible, Amount, OrderDate, Account, InstName, SuperInt);
                 }
                 // Cancelled orders
-                var SQLSelectCancelledPO = @"Select FormNo   
-                                            From Orderform a 
-                                            Where Formtype = 1 and Formstatus = 5
-                                            and a.lastupdated > DATEADD(MINUTE, @DelayMins, @LastSuccessFulRun)";
+                var SQLSelectCancelledPO = @"SELECT FormNo   
+                                            FROM Orderform a 
+                                            WHERE Formtype = 1 AND Formstatus = 5
+                                            AND a.FormNo NOT LIKE '%-%'
+                                            AND a.lastupdated > DATEADD(MINUTE, @DelayMins, @LastSuccessFulRun)";
 
                 foreach (var value in dbConnectionAmos.Query<OrderForm>(SQLSelectCancelledPO, new { LastSuccessFulRun, _settings.DelayMins }))
                 {

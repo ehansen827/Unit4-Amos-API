@@ -32,8 +32,8 @@ namespace Fjord1.Int.NetCore
                 if (!string.IsNullOrEmpty(_settings.LastUpdated)) LastSuccessFulRun = _settings.LastUpdated;
                 string[] rsClient = _settings.RsClient;
 
-                var SQLSelectPOnr = @"Select distinct(order_id) as Value, 'true' as Active From a1ar_apoready where client = @Client";
-                var SQLSelectClName = @"Select client_name From acrclient Where client = @Client";
+                var SQLSelectPOnr = @"SELECT DISTINCT(order_id) AS Value, 'true' AS Active FROM a1ar_apoready WHERE client = @Client AND status = 'O'";
+                var SQLSelectClName = @"SELECT client_name FROM acrclient WHERE client = @Client";
 
                 for (int i = 0; i < rsClient.Length; i++)
                 {

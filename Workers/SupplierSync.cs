@@ -32,7 +32,7 @@ namespace Fjord1.Int.NetCore
                 if (_settings.FullSync is true) LastSuccessFulRun = "1999-01-01";
                 _workerLogger.LogInformation($"Synchronizing supplier information updated since " + LastSuccessFulRun);
 
-                var SQLSelectSup = @"SELECT apar_id, apar_name, asu.status, amosadr.addressid, amosadr.name, amosadr.gradeid, amosgra.descr,
+                var SQLSelectSup = @$"SELECT apar_id, apar_name, asu.status, amosadr.addressid, amosadr.name, amosadr.gradeid, amosgra.descr,
                                     CASE
                                      WHEN amosadr.addressid is null THEN 'Yes' ELSE 'No'
                                     END AS New, 
@@ -43,8 +43,8 @@ namespace Fjord1.Int.NetCore
                                      ELSE 'No' 
                                     END AS Updated 
                                     FROM [dbo].[asuheader] asu 
-                                    LEFT JOIN [srfloamosdb2019].[AmosOffice].[amos].[Address] amosadr ON asu.apar_id = amosadr.addressid
-                                    LEFT JOIN [srfloamosdb2019].[AmosOffice].[amos].qagrading amosgra ON amosadr.gradeid = amosgra.gradeid
+                                    LEFT JOIN {_settings.SQLInjection}.[amos].[Address] amosadr ON asu.apar_id = amosadr.addressid
+                                    LEFT JOIN {_settings.SQLInjection}.[amos].qagrading amosgra ON amosadr.gradeid = amosgra.gradeid
                                     WHERE client in ('50')
                                     AND asu.last_update >= @LastSuccessFulRun
                                     ";

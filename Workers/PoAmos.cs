@@ -430,27 +430,70 @@ namespace Fjord1.Int.NetCore
             if (res == null) res = "0";
             return res.ToString();
         }
+        //public string InstCode(int deptid)
+        //{
+        //    using IDbConnection dbConnectionAmos = _settings.AmosDbConnection.CreateConnection();
+        //    dbConnectionAmos.Open();
+        //    var SQLStringGetInst = @"Select top 1 i.SiteCode from Orderline a 
+        //                            Inner join Department d on a.Deptid=d.Deptid 
+        //                            Inner join installation i on d.InstID=i.InstID 
+        //                            Where a.Deptid=@deptid";
+        //    var res = dbConnectionAmos.ExecuteScalar(SQLStringGetInst, new { deptid }).ToString();
+        //    if (res.Length == 1) res = "00" + res;
+        //    if (res.Length == 2) res = "0" + res;
+        //    if (res == "600") // Spesiell håndtering for land-anlegg på 600-serien
+        //    {
+        //        SQLStringGetInst = @"Select comment1 from department where deptid = @deptid";
+        //        res = dbConnectionAmos.ExecuteScalar(SQLStringGetInst, new { deptid }).ToString();
+        //    }
+        //    var InstCode = "000";
+        //    if (Int32.Parse(res) < 699) InstCode = "700" + res;
+        //    if (Int32.Parse(res) < 399) InstCode = "123" + res;
+        //    if (Int32.Parse(res) < 126) InstCode = "113" + res;
+        //    return InstCode;
+        //}
+
         public string InstCode(int deptid)
         {
             using IDbConnection dbConnectionAmos = _settings.AmosDbConnection.CreateConnection();
             dbConnectionAmos.Open();
-            var SQLStringGetInst = @"Select top 1 i.SiteCode from Orderline a 
+            var SQLStringGetInst = @"Select top 1 i.Sitecode from Orderline a 
                                     Inner join Department d on a.Deptid=d.Deptid 
                                     Inner join installation i on d.InstID=i.InstID 
                                     Where a.Deptid=@deptid";
             var res = dbConnectionAmos.ExecuteScalar(SQLStringGetInst, new { deptid }).ToString();
-            if (res.Length == 1) res = "00" + res;
-            if (res.Length == 2) res = "0" + res;
-            if (res == "600") // Spesiell håndtering for land-anlegg på 600-serien
+
+            using IDbConnection dbConnectionUBW = _settings.UBWDbConnection.CreateConnection();
+            dbConnectionUBW.Open();
+            var SQLGetCostc = @"SELECT TOP 1 rel_value
+                                FROM agldimvalue
+                                WHERE attribute_id='Z8' AND client = '50' AND status = 'N' AND dim_value=@res";
+
+            var InstCode = dbConnectionUBW.QuerySingleOrDefault<string>(SQLGetCostc, new { res });
+
+            if (InstCode.Count() > 0)
             {
-                SQLStringGetInst = @"Select comment1 from department where deptid = @deptid";
-                res = dbConnectionAmos.ExecuteScalar(SQLStringGetInst, new { deptid }).ToString();
+                return InstCode;
             }
-            var InstCode = "000";
-            if (Int32.Parse(res) < 699) InstCode = "700" + res;
-            if (Int32.Parse(res) < 399) InstCode = "123" + res;
-            if (Int32.Parse(res) < 126) InstCode = "113" + res;
-            return InstCode;
+            else
+            {
+                JobResult.Failed($"Installasjon {res} mangler begrepsverdi i UBW!");
+                return "0";
+            }
+
+            //if (res.Length == 1) res = "00" + res;
+            //if (res.Length == 2) res = "0" + res;
+            //if (res == "600") // Spesiell håndtering for land-anlegg på 600-serien
+            //{
+            //    SQLStringGetInst = @"Select comment1 from department where deptid = @deptid";
+            //    res = dbConnectionAmos.ExecuteScalar(SQLStringGetInst, new { deptid }).ToString();
+            //}
+            //var InstCode = "000";
+            //if (Int32.Parse(res) < 699) InstCode = "700" + res;
+            //if (Int32.Parse(res) < 399) InstCode = "123" + res;
+            //if (Int32.Parse(res) < 300) InstCode = "113" + res;
+
+            //return InstCode;
         }
 
         public string GetAccount(string rg)

@@ -37,9 +37,10 @@ namespace Fjord1.Int.NetCore
 
             try
             {
+                // "SQLInjection":"[SRFLOUNIT4DB\\UNIT4].[TESTAgressoM7].[dbo]"
                 var SQLUpddate1 = $@"UPDATE ac
                                     SET active = 0
-                                    FROM [AmosOfficeDemo].[amos].[AccountCode] ac
+                                    FROM [AmosOffice].[amos].[AccountCode] ac
                                     JOIN {_settings.SQLInjection}.[agldimvalue] agldv ON ac.code = agldv.dim_value
                                     JOIN {_settings.SQLInjection}.[aglrelvalue] aglrv1 ON agldv.dim_value = aglrv1.att_value AND aglrv1.rel_attr_id = 'A0' AND agldv.client = aglrv1.client
                                     JOIN {_settings.SQLInjection}.[aglrelvalue] aglrv2 on agldv.dim_value = aglrv2.att_value AND aglrv2.rel_attr_id = 'C1' AND agldv.client = aglrv2.client
@@ -47,7 +48,7 @@ namespace Fjord1.Int.NetCore
                                     JOIN {_settings.SQLInjection}.[agldescription] agld1 ON agldv.dim_value = agld1.dim_value AND agld1.attribute_id = aglrv1.attribute_id AND agldv.client = agld1.client
                                     JOIN {_settings.SQLInjection}.[agldescription] agld2 ON aglrv1.rel_value = agld2.dim_value AND agld2.attribute_id = 'A0'AND agldv.client = agld2.client
                                     JOIN {_settings.SQLInjection}.[atsproject] pr ON agldv.dim_value = pr.head_project
-                                    where 1=1
+                                    WHERE 1=1
                                     AND aglrv3.rel_value = 'J'
                                     AND (pr.date_from > GETDATE() OR pr.date_to < GETDATE() OR agldv.status != 'N')";
                 var res1 = dbConnectionUBW.Execute(SQLUpddate1, commandTimeout: 60 * 60);
