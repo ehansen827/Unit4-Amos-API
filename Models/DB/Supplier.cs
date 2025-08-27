@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Fjord1.Int.NetCore.Models.DB
+namespace Fjord1.Int.API.Models.DB
 {
     public class Supplier
     {

@@ -16,7 +16,7 @@ using System.Linq;
  * 
  *************************************/
 
-namespace Fjord1.Int.NetCore
+namespace Fjord1.Int.API.Workers
 {
     public class SyncApoready : Worker, IWorkerSettings<WorkerSettings>
     {

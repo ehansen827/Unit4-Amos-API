@@ -16,7 +16,7 @@ using System.Linq;
  * 
  *************************************/
 
-namespace Fjord1.Int.NetCore
+namespace Fjord1.Int.API.Workers
 {
     public class SyncProjects : Worker, IWorkerSettings<WorkerSettings>
     {
@@ -32,15 +32,18 @@ namespace Fjord1.Int.NetCore
 
         public override async Task<JobResult> Execute()
         {
-            using IDbConnection dbConnectionUBW = _settings.AmosDbConnection.CreateConnection();
-            dbConnectionUBW.Open();
+            using IDbConnection dbConnectionAmos = _settings.AmosDbConnection.CreateConnection();
+            dbConnectionAmos.Open();
 
             try
             {
+                // Test
                 // "SQLInjection":"[SRFLOUNIT4DB\\UNIT4].[TESTAgressoM7].[dbo]"
+                // Production
+                // "SQLInjection":"[SRFLOUNIT4DB\\UNIT4].[AgressoM7].[dbo]"
                 var SQLUpddate1 = $@"UPDATE ac
                                     SET active = 0
-                                    FROM [AmosOffice].[amos].[AccountCode] ac
+                                    FROM AccountCode ac
                                     JOIN {_settings.SQLInjection}.[agldimvalue] agldv ON ac.code = agldv.dim_value
                                     JOIN {_settings.SQLInjection}.[aglrelvalue] aglrv1 ON agldv.dim_value = aglrv1.att_value AND aglrv1.rel_attr_id = 'A0' AND agldv.client = aglrv1.client
                                     JOIN {_settings.SQLInjection}.[aglrelvalue] aglrv2 on agldv.dim_value = aglrv2.att_value AND aglrv2.rel_attr_id = 'C1' AND agldv.client = aglrv2.client
@@ -51,7 +54,7 @@ namespace Fjord1.Int.NetCore
                                     WHERE 1=1
                                     AND aglrv3.rel_value = 'J'
                                     AND (pr.date_from > GETDATE() OR pr.date_to < GETDATE() OR agldv.status != 'N')";
-                var res1 = dbConnectionUBW.Execute(SQLUpddate1, commandTimeout: 60 * 60);
+                var res1 = dbConnectionAmos.Execute(SQLUpddate1, commandTimeout: 60 * 60);
                 _workerLogger.LogInformation("Projects disabled in Amos: " + res1);
 
             }

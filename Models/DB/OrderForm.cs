@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Fjord1.Int.NetCore
+namespace Fjord1.Int.API.Models.DB
 {
     public partial class OrderForm
     {

@@ -9,15 +9,23 @@
 
 	<PropertyGroup>
 		<TargetFramework>netcoreapp3.1</TargetFramework>
-		<AssemblyName>Fjord1.Int.NetCore</AssemblyName>
-		<RootNamespace>Fjord1.Int.NetCore</RootNamespace>
+		<AssemblyName>Fjord1.Int.API</AssemblyName>
+		<RootNamespace>Fjord1.Int.API</RootNamespace>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<PackageReference Include="A1AR.SVC.Worker.Lib" Version="1.1.4" />
+		<PackageReference Include="A1AR.Utilities" Version="0.1.60" />
+		<PackageReference Include="CommandLineParser" Version="2.8.0" />
 		<PackageReference Include="Dapper" Version="2.0.35" />
+		<PackageReference Include="Microsoft.Data.SqlClient" Version="2.1.2" />
+		<PackageReference Include="Microsoft.Extensions.Configuration" Version="3.1.6" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="3.1.6" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="3.1.6" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="3.1.6" />
-		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.1.1" />
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="3.1.6" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Console" Version="3.1.6" />
 		<PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
 		<PackageReference Include="System.Data.SqlClient" Version="4.8.1" />
 	</ItemGroup>

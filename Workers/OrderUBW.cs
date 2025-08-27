@@ -5,8 +5,9 @@ using System.Threading.Tasks;
 using System.Data;
 using System.Linq;
 using Microsoft.Extensions.Logging;
+using Fjord1.Int.API.Models.DB;
 
-namespace Fjord1.Int.NetCore
+namespace Fjord1.Int.API.Workers
 {
     public class OrderUBW : Worker, IWorkerSettings<WorkerSettings>
     {

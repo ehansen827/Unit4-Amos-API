@@ -4,8 +4,9 @@ using System;
 using System.Data;
 using System.Threading.Tasks;
 using Dapper;
+using Fjord1.Int.API.Models.DB;
 
-namespace Fjord1.Int.NetCore
+namespace Fjord1.Int.API.Workers
 {
     public class OrderAmos : Worker, IWorkerSettings<WorkerSettings>
     {
@@ -36,6 +37,11 @@ namespace Fjord1.Int.NetCore
                 //                        Where Formtype = 1 and Formstatus = 1 
                 //                        and OrderedDate is not null
                 //                        and a.lastupdated > @LastSuccessFulRun";
+
+                // Test
+                // {_settings.SQLInjection} = [SRFLOUNIT4DB\UNIT4].[TestAgressoM7].[dbo]
+                // Production
+                // {_settings.SQLInjection} = [SRFLOUNIT4DB\UNIT4].[AgressoM7].[dbo]
                 var SQLStringSelectPO = $@"SELECT OrderID, a.FormNo, OrderedDate, FormStatus, VendorId, uc.Name as Responsible, ua.Name as SuperInt, EstimatedTotal, i.InstCode, i.InstName, d.comment1 as Comment1, cc.CostCentreCode as Account  
                                         FROM Orderform a 
 						                INNER JOIN amosuser uc ON CreatedBy = uc.UserID
@@ -43,7 +49,7 @@ namespace Fjord1.Int.NetCore
 						                INNER JOIN department d ON a.DeptID = d.DeptID
 						                INNER JOIN installation i ON d.InstID = i.InstID 
                                         INNER JOIN CostCentre cc ON a.CostCentreID = cc.CostCentreID
-										LEFT JOIN [SRFLOUNIT4DB\UNIT4].[AgressoM7].[dbo].[a1ar_apoready] apor ON a.FormNo = CAST(apor.Order_id AS varchar(99))
+										LEFT JOIN {_settings.SQLInjection}.[a1ar_apoready] apor ON a.FormNo = CAST(apor.Order_id AS varchar(99))
                                         WHERE Formtype = 1 AND Formstatus = 1 
                                         AND OrderedDate IS NOT NULL
 										AND apor.last_update IS NULL

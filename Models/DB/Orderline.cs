@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Fjord1.Int.NetCore
+namespace Fjord1.Int.API.Models.DB
 {
     public partial class OrderLine
     {

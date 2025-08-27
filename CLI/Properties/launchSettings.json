@@ -1,0 +1,30 @@
+{
+  "profiles": {
+    "Users": {
+      "commandName": "Project",
+      "commandLineArgs": "users\r\n-c \"Server=.;Database=UBWM7;Trusted_Connection=True\" \r\n-f FR01\r\n-r \"https://test-api.basware.com/\" \r\n-u \"219536-TEST-ct-OpenAPI-consultantusercs@basware.com\" \r\n-p \"Y(U(r37)U$#?T1)Nc=G8JVU(*||.tj*E\" \r\n-z \"https://ubw-accept01.unit4cloud.com/fr_exo_acpt_webapi/v1/objects/a1aruserss?companyId=\"\r\n-x \"EXEHANSEN\"\r\n-y \"w1d'b=|S157\"",
+      "nativeDebugging": false,
+      "jsWebView2Debugging": false
+    },
+    "Mix MOL": {
+      "commandName": "Project",
+      "commandLineArgs": "matchingorderlines\r\n-c \"Server=.;Database=UBWM7;Trusted_Connection=True\"  \r\n-f FR01\r\n-r \"https://test-api.basware.com/\" \r\n-u \"219536-TEST-ct-OpenAPI-consultantusercs@basware.com\"  \r\n-p \"GhIXaVxtJ:(zA00oVU/UOdC9dCpr5K5N\"\r\n-z \"https://ubw.unit4cloud.com/fr_exo_prod_webapi/v1/objects/a1armatchingorderliness?companyId=\"\r\n-x \"EXOWS2\"\r\n-y \"Unit4@expleo1\""
+    },
+    "NotifyTrans": {
+      "commandName": "Project",
+      "commandLineArgs": "notifytrans\r\n-c \"Server=.;Database=UBWM7;Trusted_Connection=True\" \r\n-f FR01\r\n-r \"https://test-api.basware.com/\" \r\n-u \"219536-TEST-ct-OpenAPI-consultantusercs@basware.com\" \r\n-p \"GhIXaVxtJ:(zA00oVU/UOdC9dCpr5K5N\" \r\n-z \" \"\r\n-x \" \"\r\n-y \" \""
+    },
+    "InvoiceInfo": {
+      "commandName": "Project",
+      "commandLineArgs": "invoiceinfo\r\n-c \"Server=.;Database=UBWM7;Trusted_Connection=True\" \r\n-f FR01\r\n-r \"https://test-api.basware.com/\" \r\n-u \"219536-TEST-ct-OpenAPI-consultantusercs@basware.com\" \r\n-p \"Y(U(r37)U$#?T1)Nc=G8JVU(*||.tj*E\" \r\n-z \"https://ubw-accept01.unit4cloud.com/fr_exo_acpt_webapi/v1/objects/a1arprojectss?companyId=\"\r\n-x \"EXEHANSEN\"\r\n-y \"8c|@Lc!acQ\""
+    },
+    "Bestiller": {
+      "commandName": "Project",
+      "commandLineArgs": "bestiller\r\n-r \"https://ubw-preview.unit4cloud.com/\" "
+    },
+    "POnummer": {
+      "commandName": "Project",
+      "commandLineArgs": "POnummer\r\n-c \"Server=EriksThinkPad\\ERIKSPC;Database=Amos;User Id=amos;Password=voyager;TrustServerCertificate=True;\"   "
+    }
+  }
+}

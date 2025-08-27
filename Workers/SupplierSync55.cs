@@ -4,8 +4,10 @@ using System;
 using System.Data;
 using System.Threading.Tasks;
 using Dapper;
+using Fjord1.Int.API.Utilities;
+using Fjord1.Int.API.Models.DB;
 
-namespace Fjord1.Int.NetCore
+namespace Fjord1.Int.API.Workers
 {
     public class SupplierSync55 : Worker, IWorkerSettings<WorkerSettings>
     {

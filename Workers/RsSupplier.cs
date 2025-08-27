@@ -6,11 +6,11 @@ using System.Data;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.IO;
-using Fjord1.Int.NetCore.Models.DB;
+using Fjord1.Int.API.Models.DB;
 using System.Xml;
 using System.Text;
 
-namespace Fjord1.Int.NetCore
+namespace Fjord1.Int.API.Workers
 {
     public class RsSupplier : Worker, IWorkerSettings<WorkerSettings>
     {
@@ -85,7 +85,7 @@ namespace Fjord1.Int.NetCore
                                         a1.telephone_1 as TelephoneNumber,
                                         t.tax_code as TaxCode
                                         FROM asuheader t  
-                                        INNER JOIN agladdress a1 ON(1=1)
+                                        INNER JOIN agladdress a1 ON (1=1)
 										JOIN acrclient ac on  ac.client = @Client
                                         WHERE t.apar_gr_id IN('IL','IN','KL','UL','AP') 
                                         AND COALESCE(cast(convert(char(8),t.expired_date,112)as datetime) , convert(datetime,'19000101',112)) = convert(datetime,'19000101',112) 

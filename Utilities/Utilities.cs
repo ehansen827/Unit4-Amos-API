@@ -5,8 +5,9 @@ using System.Text;
 using Dapper;
 using System.Data.SqlClient;
 using System.Data;
+using Fjord1.Int.API;
 
-namespace Fjord1.Int.NetCore
+namespace Fjord1.Int.API.Utilities
 {
     public static class StringHelpers 
     {

@@ -6,8 +6,10 @@ using System.Threading.Tasks;
 using Dapper;
 using System.Text.RegularExpressions;
 using System.Linq;
+using Fjord1.Int.API.Models.DB;
+using Fjord1.Int.API.Utilities;
 
-namespace Fjord1.Int.NetCore
+namespace Fjord1.Int.API.Workers
 {
     public class AmosInvoiceEx : Worker, IWorkerSettings<WorkerSettings>
 	{

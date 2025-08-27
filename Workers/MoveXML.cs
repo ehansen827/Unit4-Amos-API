@@ -8,8 +8,10 @@ using System.Threading.Tasks;
 using Dapper;
 using System.Collections.Generic;
 using System.Linq;
+using Fjord1.Int.API.Models.DB;
+using Fjord1.Int.API.Utilities;
 
-namespace Fjord1.Int.NetCore
+namespace Fjord1.Int.API.Workers
 {
     public class MoveXML : Worker, IWorkerSettings<WorkerSettings>
     {

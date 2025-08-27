@@ -4,8 +4,9 @@ using System;
 using System.Data;
 using System.Threading.Tasks;
 using Dapper;
+using Fjord1.Int.API.Models.DB;
 
-namespace Fjord1.Int.NetCore
+namespace Fjord1.Int.API.Workers
 {
     public class PrActUBW : Worker, IWorkerSettings<WorkerSettings>
 	{

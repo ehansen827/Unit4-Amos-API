@@ -6,8 +6,9 @@ using System.Data;
 using System.Threading.Tasks;
 using Dapper;
 using System.Linq;
+using Fjord1.Int.API.Models.DB;
 
-namespace Fjord1.Int.NetCore
+namespace Fjord1.Int.API.Workers
 {
     public class MissingInv : Worker, IWorkerSettings<WorkerSettings>
 	{
@@ -34,7 +35,8 @@ namespace Fjord1.Int.NetCore
 
                 dbConnectionUBW.Open();
                 var SQLStringSelectOrder = @"SELECT TOP 1 apo.order_id as Order_id, a.invoice_no FROM A1AR_APOREADY a
-                                            JOIN apoheader apo ON CONVERT(varchar, a.order_id) = CONVERT(VARCHAR, apo.ext_ord_ref) AND CONVERT(VARCHAR, a.invoice_no) = CONVERT(VARCHAR, apo.text1)
+                                            JOIN apoheader apo ON CONVERT(varchar, a.order_id) = CONVERT(VARCHAR, apo.ext_ord_ref) 
+                                                AND CONVERT(VARCHAR, a.invoice_no) = CONVERT(VARCHAR, apo.text1)
                                             WHERE a.accountable = 'AMOS' AND a.filename = @filename";
 
                 foreach (var Order in dbConnectionUBW.Query<A1ar_apoready>(SQLStringSelectOrder, new { filename }))
