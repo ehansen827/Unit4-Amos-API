@@ -93,10 +93,5 @@ namespace Fjord1.Int.API.Workers
                 return Convert.ToDateTime(res);
             }
         }
-        public class Clients
-        {
-            public string Client { get; set; }
-            public string ClientName { get; set; }
-        }
     }
 }

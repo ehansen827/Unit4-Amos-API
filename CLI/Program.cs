@@ -123,12 +123,12 @@ namespace CommandLine
 namespace CLI 
 {
 
-    [Verb("accountingdocuments", HelpText = "Update accountingdocuments from Basware.")]
-    class AccountingdocumentsOptions : CommonOptions
-    {
-        [Option("period", Required = true, HelpText = "Workorder current period.")]
-        public int Period { get; set; }
-    }
+    //[Verb("accountingdocuments", HelpText = "Update accountingdocuments from Basware.")]
+    //class AccountingdocumentsOptions : CommonOptions
+    //{
+    //    [Option("period", Required = true, HelpText = "Workorder current period.")]
+    //    public int Period { get; set; }
+    //}
 
     [Verb("bestiller", HelpText = "Lager XML fil med bestillere hos F1")]
     class RsF1BestillerOptions : CommonOptions
@@ -136,6 +136,10 @@ namespace CLI
     }
     [Verb("POnummer", HelpText = "Lager XML fil med PO nummer fra F1")]
     class rsPOnummerOptions : CommonOptions
+    {
+    }
+    [Verb("supplier", HelpText = "Lager XML fil med suppliers fra F1")]
+    class rsSupplierOptions : CommonOptions
     {
     }
 
@@ -178,12 +182,14 @@ namespace CLI
 				await Parser.Default.ParseArguments<
 
                     RsF1BestillerOptions,
-                    rsPOnummerOptions
+                    rsPOnummerOptions,
+                    rsSupplierOptions
 
                     >(args)
 					.MapResult(
                         (RsF1BestillerOptions opts) => SyncRsF1Bestiller(opts),
                         (rsPOnummerOptions opts) => SyncRsPOnummer(opts),
+						(rsSupplierOptions opts) => SyncRsSupplier(opts),
                         errs => Task.FromResult(0));
 			}
 			catch (Exception ex)
@@ -205,6 +211,12 @@ namespace CLI
             var worker = serviceProvider.GetService<RsPOnummer>();
             await worker.Execute(new WorkerParameters { Initialize = options.Initialize });
         }
+		private static async Task SyncRsSupplier(rsSupplierOptions options)
+		{
+			using var serviceProvider = ServiceProvider(options);
+			var worker = serviceProvider.GetService<RsSupplier>();
+			await worker.Execute(new WorkerParameters { Initialize = options.Initialize });
+        }	
 
         //private static async Task SyncAccountingdocuments(AccountingdocumentsOptions options)
         //{
@@ -242,7 +254,6 @@ namespace CLI
                 .AddScoped(m => new WorkerSettings
                 {
                     AmosDbConnection = new CLI.ConnectionFactory(options.ConnectString),
-                    //ATEDbConnection = new ConnectionFactory(options.ConnectString),
                     //Client = options.Client,
                     BaseUri = options.BaseUri,
 					//RestUserName = options.UserName,

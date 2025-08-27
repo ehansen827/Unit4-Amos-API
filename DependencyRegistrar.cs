@@ -18,6 +18,7 @@ namespace Fjord1.Int.API
                 .UseWorkerMutex()
                 .AddScoped<RsF1Bestiller>()
                 .AddScoped<RsPOnummer>()
+                .AddScoped<RsSupplier>()
                 .AddScoped<IGetHttpClient, GetHttpClient>()
                 //.AddScoped<IUbwRepository, UbwRepository>()
                 //.AddScoped<IRest, Rest>()

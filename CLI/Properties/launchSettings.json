@@ -18,13 +18,17 @@
       "commandName": "Project",
       "commandLineArgs": "invoiceinfo\r\n-c \"Server=.;Database=UBWM7;Trusted_Connection=True\" \r\n-f FR01\r\n-r \"https://test-api.basware.com/\" \r\n-u \"219536-TEST-ct-OpenAPI-consultantusercs@basware.com\" \r\n-p \"Y(U(r37)U$#?T1)Nc=G8JVU(*||.tj*E\" \r\n-z \"https://ubw-accept01.unit4cloud.com/fr_exo_acpt_webapi/v1/objects/a1arprojectss?companyId=\"\r\n-x \"EXEHANSEN\"\r\n-y \"8c|@Lc!acQ\""
     },
-    "Bestiller": {
+    "rsSupplier": {
       "commandName": "Project",
-      "commandLineArgs": "bestiller\r\n-r \"https://ubw-preview.unit4cloud.com/\" "
+      "commandLineArgs": "supplier\r\n-c \"Server=EriksThinkPad\\ERIKSPC;Database=Amos;User Id=amos;Password=voyager;TrustServerCertificate=True;\"   "
     },
-    "POnummer": {
+    "rsPOnummer": {
       "commandName": "Project",
       "commandLineArgs": "POnummer\r\n-c \"Server=EriksThinkPad\\ERIKSPC;Database=Amos;User Id=amos;Password=voyager;TrustServerCertificate=True;\"   "
+    },
+    "rsBestiller": {
+      "commandName": "Project",
+      "commandLineArgs": "bestiller\r\n-r \"https://ubw-preview.unit4cloud.com/\" "
     }
   }
 }

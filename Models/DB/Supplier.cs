@@ -15,7 +15,7 @@ namespace Fjord1.Int.API.Models.DB
         public string PostalCode { get; set; }
         public string City { get; set; }
         public string CountryName { get; set; }
-        public string PaymentTerm { get; set; }
+        public string PaymentTer { get; set; }
         public string PaymentMethod { get; set; }
         public string CurrencyCode { get; set; }
         public string Blocked { get; set; }
