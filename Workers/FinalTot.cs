@@ -64,10 +64,10 @@ namespace Fjord1.Int.API.Workers
             using IDbConnection dbConnectionATE = _settings.ATEDbConnection.CreateConnection();
             dbConnectionATE.Open();
             var SQLStringGetRun = @"SELECT max(ti.ExecutionFinish)
-                                    FROM [ATE].[TaskInstances] ti
-                                    inner join [ATE].[TaskInstances] td on td.TaskDefinitionId = ti.TaskDefinitionId 
-                                    where ti.result = 1 
-                                    and td.Id = @taskId";
+                                    FROM ATE.TaskInstances ti
+                                    INNER JOIN ATE.TaskInstances td on td.TaskDefinitionId = ti.TaskDefinitionId 
+                                    WHERE ti.result = 1 
+                                    AND td.Id = @taskId";
             var res = dbConnectionATE.ExecuteScalar<DateTime>(SQLStringGetRun, new { taskId }).ToString("yyyy-MM-dd HH:mm");
             return Convert.ToDateTime(res);
         }

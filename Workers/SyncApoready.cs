@@ -1,11 +1,12 @@
-﻿using A1AR.SVC.Worker.Lib.Common;
-using Microsoft.Extensions.Logging;
-using System;
-using System.IO;
+﻿using System;
 using System.Data;
-using System.Threading.Tasks;
-using Dapper;
+using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
+using A1AR.SVC.Worker.Lib.Common;
+using Dapper;
+using Fjord1.Int.API.Services;
+using Microsoft.Extensions.Logging;
 
 /*************************************
  * 
@@ -18,22 +19,23 @@ using System.Linq;
 
 namespace Fjord1.Int.API.Workers
 {
-    public class SyncApoready : Worker, IWorkerSettings<WorkerSettings>
+    public class SyncApoready : Worker<WorkerParameters, WorkerSettings>
     {
-        private readonly ILogger<Worker> _workerLogger;
         private readonly WorkerSettings _settings;
-        public Type SettingsType => typeof(WorkerSettings);
+        private readonly ILogger<Task> _workerLogger;
+        private readonly IGetHttpClient _getHttpClient;
 
-        public SyncApoready(ILogger<Worker> workerLogger, WorkerSettings WorkerSettings)
+        public SyncApoready(ILogger<Task> _workerLogger, WorkerSettings _settings, IGetHttpClient _getHttpClient)
         {
-            _workerLogger = workerLogger;
-            _settings = WorkerSettings;
+            this._settings = _settings;
+            this._workerLogger = _workerLogger;
+            this._getHttpClient = _getHttpClient;
         }
 
-        public override async Task<JobResult> Execute()
+        public override async Task<JobResult> Execute(WorkerParameters parameters)
         {
-            using IDbConnection dbConnectionUBW = _settings.UBWDbConnection.CreateConnection();
-            dbConnectionUBW.Open();
+            using IDbConnection dbConnectionAmos = _settings.AmosDbConnection.CreateConnection();
+            dbConnectionAmos.Open();
 
             try
             {
@@ -50,20 +52,15 @@ namespace Fjord1.Int.API.Workers
 				                        WHEN orf.WorkFlowStatusID in(6000000005) and v.FinalInvoice = 1 THEN 'A'
 				                        WHEN orf.WorkFlowStatusID in(6000000008) and v.FinalInvoice = 0 THEN 'O'
 				                        WHEN orf.WorkFlowStatusID in(6000000008) and v.FinalInvoice = 1 THEN 'A'
-	                                    --WHEN orf.formstatus = 3 and v.finalinvoice = 1 THEN 'A' 
-	                                    --WHEN orf.formstatus = 3 and v.finalinvoice = 0 THEN 'O' 
-	                                    --WHEN orf.formstatus = 1 and v.finalinvoice = 1 THEN 'A' 
-	                                    --WHEN orf.formstatus = 1 and v.finalinvoice = 0 THEN 'O' 
                                     END
                                     FROM a1ar_apoready apo
-                                    JOIN {_settings.SQLInjection}.[OrderForm] orf ON CAST(apo.order_id AS varchar) = orf.FormNo
-                                    JOIN {_settings.SQLInjection}.[WorkflowStatus] ON orf.WorkFlowStatusID = WorkFlowStatus.StatusID
-                                    JOIN {_settings.SQLInjection}.[Voucher] v ON orf.OrderID = v.OrderID
+                                    JOIN OrderForm orf ON CAST(apo.order_id AS varchar) = orf.FormNo
+                                    JOIN WorkflowStatus ON orf.WorkFlowStatusID = WorkFlowStatus.StatusID
+                                    JOIN Voucher v ON orf.OrderID = v.OrderID
                                     WHERE orf.FormType = 1
                                     AND (apo.invoice_no IS NULL OR apo.invoice_no = ' ')";
-                var res1 = dbConnectionUBW.Execute(SQLUpddate1, commandTimeout: 60 * 60);
-                //_workerLogger.LogInformation("Active in Amos, not open in Apoready: " + res1);
-
+                var res1 = dbConnectionAmos.Execute(SQLUpddate1, commandTimeout: 60 * 60);
+                _workerLogger.LogInformation("Active in Amos, not open in Apoready: " + res1);
             }
             catch (Exception ex)
             {

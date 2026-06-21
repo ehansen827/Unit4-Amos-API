@@ -1,49 +1,56 @@
-﻿using A1AR.SVC.Worker.Lib.Common;
-using System;
-using Dapper;
-using System.Threading.Tasks;
+﻿using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using Microsoft.Extensions.Logging;
+using System.Net.Http;
+using System.Net.Sockets;
+using System.Threading.Tasks;
+using A1AR.SVC.Worker.Lib.Common;
+using Dapper;
 using Fjord1.Int.API.Models.DB;
+using Fjord1.Int.API.Services;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 
 namespace Fjord1.Int.API.Workers
 {
-    public class OrderUBW : Worker, IWorkerSettings<WorkerSettings>
+    public class OrderUBW : Worker<WorkerParameters, WorkerSettings>
     {
-        private readonly ILogger<Worker> _workerLogger;
         private readonly WorkerSettings _settings;
-        public Type SettingsType => typeof(WorkerSettings);
-        public OrderUBW(ILogger<Worker> workerLogger, WorkerSettings WorkerSettings)
+        private readonly ILogger<Task> _workerLogger;
+        private readonly IGetHttpClient _getHttpClient;
+
+        public OrderUBW(ILogger<Task> _workerLogger, WorkerSettings _settings, IGetHttpClient _getHttpClient)
         {
-            _workerLogger = workerLogger;
-            _settings = WorkerSettings;
+            this._settings = _settings;
+            this._workerLogger = _workerLogger;
+            this._getHttpClient = _getHttpClient;
         }
 
-        public override async Task<JobResult> Execute()
+        public override async Task<JobResult> Execute(WorkerParameters parameters)
         {
-            var LastSuccessFulRun = LastSucessfulRun(this.JobInstance.Id).ToString("yyyy-MM-dd");
-            if (!string.IsNullOrEmpty(_settings.LastUpdated)) LastSuccessFulRun = _settings.LastUpdated;
-            _workerLogger.LogInformation("Lastupdated " + LastSuccessFulRun);
+            var LastSuccessfulRun = LastSucessfulRun(this.JobInstance.Id).ToString("yyyy-MM-dd");
+            if (!string.IsNullOrEmpty(_settings.LastUpdated)) LastSuccessfulRun = _settings.LastUpdated;
+            _workerLogger.LogInformation("Lastupdated " + LastSuccessfulRun);
 
-            using IDbConnection dbConnectionAgr = _settings.UBWDbConnection.CreateConnection();
-            var SQLStringSelectUBWOrder = @"Select Order_id, Ext_ord_ref, Text1
-                                            From Apoheader 
-                                            Where responsible = 'AMOS' 
-                                            and ext_ord_ref is Not Null
-                                            and last_update >= @LastSuccessFulRun";
+            var SQLStringSelectAmosOrder = @"SELECT FormNo
+                                            FROM A1AR_OrderUBW
+                                            WHERE formno = @Ext_ord_ref AND orderid = @Order_id";
 
-            var SQLStringSelectAmosOrder = @"Select FormNo
-                                            From A1AR_OrderUBW
-                                            Where formno = @Ext_ord_ref and orderid = @Order_id";
+            var SQLStringInsertAmosOrder = @"INSERT INTO A1AR_OrderUBW (formno, orderid, Updated) VALUES (@Ext_ord_ref, @Order_id, GETDATE())";
 
-            var SQLStringInsertAmosOrder = @"Insert Into A1AR_OrderUBW (formno, orderid, Updated) values (@Ext_ord_ref, @Order_id, GETDATE())";
+            var SQLStringUpdateAmosOrder = @"UPDATE OrderForm
+                                            SET Notes = IsNull(Notes,'- ') + CHAR(13)+CHAR(10) + 'Faktura ' + @Text1 + ' sendt til UBW med ordre nr. ' + @Order_id + ' @' + Cast(GETDATE() AS Varchar(max)) 
+                                            WHERE Formno = @Ext_ord_ref";
 
-            var SQLStringUpdateAmosOrder = @"Update OrderForm
-                                            Set Notes = IsNull(Notes,'- ') + CHAR(13)+CHAR(10) + 'Faktura ' + @Text1 + ' sendt til UBW med ordre nr. ' + @Order_id + ' @' + Cast(GETDATE() as Varchar(max)) 
-                                            Where Formno = @Ext_ord_ref";
+            var ubwClient = _getHttpClient.CreateUBW(_settings);
 
-            var UBWOrders = dbConnectionAgr.Query<OrderInfo>(SQLStringSelectUBWOrder, new { LastSuccessFulRun}, commandTimeout: 1000);
+            var url = $"{_settings.ApiUBWOrder}{LastSuccessfulRun}".TrimStart('/');
+            HttpResponseMessage dataresponse = await ubwClient.GetAsync(url);
+            HttpContent content = dataresponse.Content;
+            var Json = await content.ReadAsStringAsync();
+            var UBWOrders = JsonConvert.DeserializeObject<List<OrderInfo>>(Json);
+
             foreach (var UBWOrder in UBWOrders)
             {
                 _workerLogger.LogInformation("Processing UBW order " + UBWOrder.Order_id + " for Amos order |" + UBWOrder.Ext_ord_ref + "| - invoice " + UBWOrder.Text1);
@@ -67,10 +74,10 @@ namespace Fjord1.Int.API.Workers
             using IDbConnection dbConnectionATE = _settings.ATEDbConnection.CreateConnection();
             dbConnectionATE.Open();
             var SQLStringGetRun = @"SELECT max(ti.ExecutionFinish)
-                                    FROM [ATE].[TaskInstances] ti
-                                    inner join [ATE].[TaskInstances] td on td.TaskDefinitionId = ti.TaskDefinitionId 
-                                    where ti.result = 1 
-                                    and td.Id = @taskId";
+                                    FROM ATE.TaskInstances ti
+                                    INNER JOIN ATE.TaskInstances td on td.TaskDefinitionId = ti.TaskDefinitionId 
+                                    WHERE ti.result = 1 
+                                    AND td.Id = @taskId";
             var res = dbConnectionATE.ExecuteScalar<DateTime>(SQLStringGetRun, new { taskId }).ToString("yyyy-MM-dd HH:mm");
             return Convert.ToDateTime(res);
         }

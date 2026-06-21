@@ -11,21 +11,21 @@
 
 //////namespace Fjord1.Int.API.Workers
 //////{
-//////    public class AmosInvoiceEx : Worker, IWorkerSettings<WorkerSettings>
-//////	{
+//////    public class PoAmosOrig : Worker, IWorkerSettings<WorkerSettings>
+//////    {
 //////        private readonly ILogger<Worker> _workerLogger;
-//////		private readonly WorkerSettings _settings;
+//////        private readonly WorkerSettings _settings;
 //////        public Type SettingsType => typeof(WorkerSettings);
 
-//////        public AmosInvoiceEx(ILogger<Worker> workerLogger, WorkerSettings WorkerSettings)
-//////		{
-//////			_workerLogger = workerLogger;
-//////			_settings = WorkerSettings;
+//////        public PoAmos(ILogger<Worker> workerLogger, WorkerSettings WorkerSettings)
+//////        {
+//////            _workerLogger = workerLogger;
+//////            _settings = WorkerSettings;
 //////        }
 //////        public string Mdhm { get; set; } = DateTime.Now.ToString("MMddHHmm");
 
 //////        public override async Task<JobResult> Execute()
-//////		{
+//////        {
 //////            try
 //////            {
 //////                using IDbConnection dbConnectionUBW = _settings.UBWDbConnection.CreateConnection();
@@ -45,8 +45,6 @@
 //////                }
 //////                using IDbConnection dbConnectionAmos = _settings.AmosDbConnection.CreateConnection();
 //////                dbConnectionAmos.Open();
-//////                _workerLogger.LogInformation("DB: " + dbConnectionAmos.Database);
-
 //////                var SQLStringSelectPO = @"Select a.OrderID, a.FormNo, a.Title as Title, VendorID, EstimatedTotal, a.CurrencyCode, VendorDeliveryDate, a.DeptID,
 //////                                        u.Name as UName, bg.Code as UserDefText, d.name as Delivery, ac.Code as Project, cc.CostCentreCode as Account, t.TaxCode, 
 //////                                        v.VendorRef as Reference, v.Amount, a.FormStatus, a.PartPayment, a.ActualTotal, a.BudgetAtLineItem,
@@ -76,15 +74,31 @@
 //////	                                    left join BudgetCodeDef bcd on bc.BudgetCodeDefID = bcd.BudgetCodeDefID
 //////	                                    left join BudgetGroup bg on bcd.BudgetGroupID = bg.BudgetGroupID
 //////                                        left join A1ATE_OrderFormTaxCode t on a.OrderID=t.OrderId and t.vendorref = v.vendorref
-//////                                        join A1AR_OrderInvoice oi on a.FormNo = oi.FormNo and v.VendorRef = oi.InvoiceNo
 //////                                        Where 1 = 1
-//////                                        and a.formno = @formno
-//////                                        and v.vendorref = @invoiceno";
+//////                                        and v.VendorRef not in (select InvoiceNo from A1AR_OrderInvoice where FormNo = a.FormNo and InvoiceNo = v.VendorRef)
+//////                                        and v.VendorRef is not null
+//////                                        and vo.amount!=0
+//////                                        and a.EstimatedTotal != 0
+//////										and (ua.Name != 'Agresso Fjord1 ERP System' or ua.Name is Null)
+//////                                        and ((formtype = 1 and formstatus = 3 
+//////                                            and FormNo like '%' + @formNo + '%' 
+//////                                            and (  (ABS(PartPayment - EstimatedTotal) <= PartPayment *.05 and ABS(PartPayment - EstimatedTotal) <= 200)
+//////												or (ABS(ActualTotal - EstimatedTotal) <= ActualTotal *.05 and ABS(ActualTotal - EstimatedTotal) <= 200)
+//////												or (v.FinalInvoice = 1 and ((PartPayment >0 and PartPayment < EstimatedTotal) or (ActualTotal > 0 and ActualTotal < EstimatedTotal))))
+//////											and a.LastUpdated > @LastSuccessFulRun)
+//////                                            or (formtype = 1 and formstatus in (1, 3)
+//////                                                and FormNo like '%' + @formNo + '%' 
+//////                                                and v.PaymentApprovedBy is not null and v.PaymentApprovedDate is not null
+//////                                                and v.LastUpdated > @LastSuccessFulRun))
+//////                                        order by formno";
 
+//////                var LastSuccessFulRun = LastSucessfulRun(this.JobInstance.Id).ToString("yyyy-MM-dd HH:mm");
+//////                if (!string.IsNullOrEmpty(_settings.LastUpdated)) LastSuccessFulRun = _settings.LastUpdated;
 //////                var ordcount = 0;
-//////                foreach (var poheader in dbConnectionAmos.Query<OrderForm>(SQLStringSelectPO, new { formno = _settings.FormNo, invoiceno = _settings.InvoiceNo }))
+//////                foreach (var poheader in dbConnectionAmos.Query<OrderForm>(SQLStringSelectPO, new { LastSuccessFulRun, _settings.FormNo }))
 //////                {
 //////                    ordcount++;
+//////                    if (ordcount >= _settings.OrdLimit) break;
 //////                    _workerLogger.LogInformation("Processing order " + poheader.FormNo);
 //////                    poheader.FormNo = poheader.FormNo.Replace("-", "");
 //////                    if (String.IsNullOrWhiteSpace(poheader.Title)) poheader.Title = " ";
@@ -96,7 +110,7 @@
 //////                    var appliedAmount = poheader.InvoiceTotal;
 
 //////                    var origReference = poheader.Reference;
-//////                    poheader.Reference = Regex.Replace(poheader.Reference, "[^0-9.]", "");
+//////                    poheader.Reference = Regex.Replace(poheader.Reference, "[^0-9]", "");
 //////                    if (poheader.EstimatedTotal == 0 && poheader.PartPayment != 0) poheader.EstimatedTotal = poheader.PartPayment;
 //////                    if (poheader.EstimatedTotal == 0 && poheader.ActualTotal != 0) poheader.EstimatedTotal = poheader.ActualTotal;
 
@@ -120,7 +134,7 @@
 //////                                            and t.vendorref = @Reference
 //////                                            and a.Price != 0";
 
-//////                    foreach (var poline in dbConnectionAmos.Query<OrderLine>(SQLStringSelectLI, new { poheader.OrderID, Reference=origReference }))
+//////                    foreach (var poline in dbConnectionAmos.Query<OrderLine>(SQLStringSelectLI, new { poheader.OrderID, Reference = origReference }))
 //////                    {
 //////                        //Orderline Transformations
 //////                        _workerLogger.LogInformation("Processing line " + poline.OrderLineNo);
@@ -166,14 +180,25 @@
 //////                            }
 //////                            poline.Quantity = 1;
 //////                        }
+//////                        //if (poheader.EstimatedTotal == 0 && poheader.PartPayment != 0) poheader.EstimatedTotal = poheader.PartPayment;
+//////                        //if (poheader.EstimatedTotal == 0 && poheader.ActualTotal != 0) poheader.EstimatedTotal = poheader.ActualTotal;
 
 //////                        InsertPOL(poline.Name, poline.Price, poline.Quantity, Rappgrpl, poheader.OrderedDate, poheader.LatestDeliveryDate,
 //////                            poheader.DeptID, Konto, poline.Comment1, poline.Comment2, poline.Discount, poline.DiscAmount, poline.TaxCode, poheader.Reference, poheader.FormNo);
 //////                    } // foreach (var poline...
 
+//////                    // store temp... xx
+//////                    //var SQLStringCopy = @"insert into Erik_algbatchinput select * from A1AR_ALGBATCHINPUT";
+//////                    //dbConnectionUBW.Execute(SQLStringCopy, commandTimeout: 60 * 60);
+//////                    // ....
+
 //////                    using IDbConnection dbConnectionAgr = _settings.UBWDbConnection.CreateConnection();
 //////                    dbConnectionAgr.Open();
 
+//////                    var SQLStringInsOI = @"Insert into A1AR_OrderInvoice(formno, invoiceno, amount, date) 
+//////                                        Select @FormNo, @Reference, @Amount, Getdate()
+//////                                        Where not Exists (Select * from A1AR_OrderInvoice Where FormNo = @FormNo and invoiceno = @Reference)";
+//////                    dbConnectionAmos.Execute(SQLStringInsOI, new { poheader.FormNo, Reference = origReference, poheader.Amount });
 
 //////                    var SQLStringInsert = @"Insert into algbatchinput(batch_id, client, article, art_descr, amount_set, period, trans_type, account, dim_1, order_id, tax_code, voucher_type, amount, cur_amount, value_1, dim_6, dim_2,
 //////                                        ext_ord_ref, responsible, deliv_countr, currency, apar_id, accountable, long_info1, order_type, control, terms_id, order_date, responsible2, deliv_date, line_no, dim_value_1, dim_value_6, text1)
@@ -210,6 +235,10 @@
 
 //////                    var SQLStringDelete = "Delete from a1ar_algbatchinput where 1=1";
 
+//////                    var SQLInsertDelFak = @"Insert Into A1AR_DELFAKTURA (FormNo, Reference, Konto, Project, Amount, OrderedDate, DeptID, TaxCode, Rappgrp) 
+//////                                        Select @FormNo, @origReference, @Konto, @Project, @Amount, @OrderedDate, @DeptID, @TaxCode, @Rappgrp
+//////                                        Where not Exists(Select * From A1AR_DELFAKTURA Where (FormNo = @FormNo and Reference = @origReference))";
+
 //////                    try
 //////                    {
 //////                        dbConnectionUBW.Execute(SQLStringInsert, commandTimeout: 60 * 60);
@@ -224,7 +253,20 @@
 //////                            var ksted = InstCode(poheader.DeptID);
 //////                            ksted = ksted.Substring(ksted.Length - 3);
 //////                            poheader.Project = "VH40" + ksted;
+//////                            dbConnectionUBW.Execute(SQLInsertDelFak, new
+//////                            {
+//////                                poheader.FormNo,
+//////                                origReference,
+//////                                Konto = poheader.Account,
+//////                                poheader.Project,
+//////                                poheader.Amount,
+//////                                poheader.OrderedDate,
+//////                                poheader.DeptID,
+//////                                poheader.TaxCode,
+//////                                Rappgrp
+//////                            }, commandTimeout: 60 * 60);
 //////                        }
+
 //////                    }
 //////                    catch (Exception ex)
 //////                    {
@@ -318,6 +360,7 @@
 //////        private void InsertPOL(string LineName, double Price, double Quantity, string Rappgrp, DateTime OrderDate, DateTime DeliveryDate, int DeptID,
 //////            string konto, string LAccount, string LProject, double DiscPercent, double Discount, string TaxCode, string Reference, string FormNo)
 //////        {
+//////            //_workerLogger.LogInformation("Price: " + Price);
 //////            using IDbConnection dbConnectionUBW = _settings.UBWDbConnection.CreateConnection();
 //////            dbConnectionUBW.Open();
 //////            var SQLStringInsert = @"INSERT INTO A1AR_ALGBATCHINPUT 
@@ -329,6 +372,10 @@
 //////            var KostSted = InstCode(DeptID);
 //////            try
 //////            {
+//////                //_workerLogger.LogInformation("Price: " + Price );
+//////                //_workerLogger.LogInformation("DiscPercent: " + DiscPercent);
+//////                //_workerLogger.LogInformation("-----------");
+
 //////                dbConnectionUBW.Execute(SQLStringInsert, new
 //////                {
 //////                    client = 50,
@@ -344,7 +391,7 @@
 //////                    dim_6 = Rappgrp,
 //////                    art_descr = LineName,
 //////                    value_1 = Quantity,
-//////                    amount = Price * (1-(DiscPercent/100)),
+//////                    amount = Price * (1 - (DiscPercent / 100)),
 //////                    cur_amount = Price * (1 - (DiscPercent / 100)),
 //////                    tax_code = TaxCode,
 //////                    order_id = Reference,
@@ -362,6 +409,20 @@
 //////                JobResult.Failed("InsertPOL failed");
 //////            }
 //////        }
+
+//////        public DateTime LastSucessfulRun(Guid taskId)
+//////        {
+//////            using IDbConnection dbConnectionATE = _settings.ATEDbConnection.CreateConnection();
+//////            dbConnectionATE.Open();
+//////            var SQLStringGetRun = @"SELECT max(ti.ExecutionFinish)
+//////                                    FROM [A1TASKENGINE].[ATE].[TaskInstances] ti
+//////                                    inner join [A1TASKENGINE].[ATE].[TaskInstances] td on td.TaskDefinitionId = ti.TaskDefinitionId 
+//////                                    where ti.result = 1 
+//////                                    and td.Id = @taskId";
+//////            var res = dbConnectionATE.ExecuteScalar<DateTime>(SQLStringGetRun, new { taskId }).ToString("yyyy-MM-dd HH:mm");
+//////            if (res == "0001-01-01 00:00" || Convert.ToDateTime(res) == DateTime.MinValue) res = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+//////            return Convert.ToDateTime(res);
+//////        }
 //////        public string GetOrderID(string order)
 //////        {
 //////            using IDbConnection dbConnectionUBW = _settings.UBWDbConnection.CreateConnection();
@@ -371,27 +432,70 @@
 //////            if (res == null) res = "0";
 //////            return res.ToString();
 //////        }
+//////        //public string InstCode(int deptid)
+//////        //{
+//////        //    using IDbConnection dbConnectionAmos = _settings.AmosDbConnection.CreateConnection();
+//////        //    dbConnectionAmos.Open();
+//////        //    var SQLStringGetInst = @"Select top 1 i.SiteCode from Orderline a 
+//////        //                            Inner join Department d on a.Deptid=d.Deptid 
+//////        //                            Inner join installation i on d.InstID=i.InstID 
+//////        //                            Where a.Deptid=@deptid";
+//////        //    var res = dbConnectionAmos.ExecuteScalar(SQLStringGetInst, new { deptid }).ToString();
+//////        //    if (res.Length == 1) res = "00" + res;
+//////        //    if (res.Length == 2) res = "0" + res;
+//////        //    if (res == "600") // Spesiell håndtering for land-anlegg på 600-serien
+//////        //    {
+//////        //        SQLStringGetInst = @"Select comment1 from department where deptid = @deptid";
+//////        //        res = dbConnectionAmos.ExecuteScalar(SQLStringGetInst, new { deptid }).ToString();
+//////        //    }
+//////        //    var InstCode = "000";
+//////        //    if (Int32.Parse(res) < 699) InstCode = "700" + res;
+//////        //    if (Int32.Parse(res) < 399) InstCode = "123" + res;
+//////        //    if (Int32.Parse(res) < 126) InstCode = "113" + res;
+//////        //    return InstCode;
+//////        //}
+
 //////        public string InstCode(int deptid)
 //////        {
 //////            using IDbConnection dbConnectionAmos = _settings.AmosDbConnection.CreateConnection();
 //////            dbConnectionAmos.Open();
-//////            var SQLStringGetInst = @"Select top 1 i.InstCode from Orderline a 
+//////            var SQLStringGetInst = @"Select top 1 i.Sitecode from Orderline a 
 //////                                    Inner join Department d on a.Deptid=d.Deptid 
 //////                                    Inner join installation i on d.InstID=i.InstID 
 //////                                    Where a.Deptid=@deptid";
 //////            var res = dbConnectionAmos.ExecuteScalar(SQLStringGetInst, new { deptid }).ToString();
-//////            if (res.Length == 1) res = "00" + res;
-//////            if (res.Length == 2) res = "0" + res;
-//////            if (res == "600") // Spesiell håndtering for land-anlegg på 600-serien
+
+//////            using IDbConnection dbConnectionUBW = _settings.UBWDbConnection.CreateConnection();
+//////            dbConnectionUBW.Open();
+//////            var SQLGetCostc = @"SELECT TOP 1 rel_value
+//////                                FROM agldimvalue
+//////                                WHERE attribute_id='Z8' AND client = '50' AND status = 'N' AND dim_value=@res";
+
+//////            var InstCode = dbConnectionUBW.QuerySingleOrDefault<string>(SQLGetCostc, new { res });
+
+//////            if (InstCode.Count() > 0)
 //////            {
-//////                SQLStringGetInst = @"Select comment1 from department where deptid = @deptid";
-//////                res = dbConnectionAmos.ExecuteScalar(SQLStringGetInst, new { deptid }).ToString();
+//////                return InstCode;
 //////            }
-//////            var InstCode = "000";
-//////            if (Int32.Parse(res) < 699) InstCode = "700" + res;
-//////            if (Int32.Parse(res) < 399) InstCode = "123" + res;
-//////            if (Int32.Parse(res) < 126) InstCode = "113" + res;
-//////            return InstCode;
+//////            else
+//////            {
+//////                JobResult.Failed($"Installasjon {res} mangler begrepsverdi i UBW!");
+//////                return "0";
+//////            }
+
+//////            //if (res.Length == 1) res = "00" + res;
+//////            //if (res.Length == 2) res = "0" + res;
+//////            //if (res == "600") // Spesiell håndtering for land-anlegg på 600-serien
+//////            //{
+//////            //    SQLStringGetInst = @"Select comment1 from department where deptid = @deptid";
+//////            //    res = dbConnectionAmos.ExecuteScalar(SQLStringGetInst, new { deptid }).ToString();
+//////            //}
+//////            //var InstCode = "000";
+//////            //if (Int32.Parse(res) < 699) InstCode = "700" + res;
+//////            //if (Int32.Parse(res) < 399) InstCode = "123" + res;
+//////            //if (Int32.Parse(res) < 300) InstCode = "113" + res;
+
+//////            //return InstCode;
 //////        }
 
 //////        public string GetAccount(string rg)

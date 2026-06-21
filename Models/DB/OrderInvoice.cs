@@ -8,8 +8,8 @@ namespace Fjord1.Int.API.Models.DB
 {
     public class OrderInvoice
     {
+        public  string Filename { get; set; }
         public string FormNo { get; set; }
         public string InvoiceNo { get; set; }
-        public string UBWOrder { get; set; }
     }
 }

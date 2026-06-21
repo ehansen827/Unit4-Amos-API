@@ -1,35 +1,36 @@
-﻿using A1AR.SVC.Worker.Lib.Common;
-using Microsoft.Extensions.Logging;
-using System;
-using System.IO;
-using System.Data;
-using System.Xml;
-using System.Threading.Tasks;
-using Dapper;
+﻿using System;
 using System.Collections.Generic;
+using System.Data;
+using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
+using System.Xml;
+using A1AR.SVC.Worker.Lib.Common;
+using Dapper;
 using Fjord1.Int.API.Models.DB;
+using Fjord1.Int.API.Services;
 using Fjord1.Int.API.Utilities;
+using Microsoft.Extensions.Logging;
 
 namespace Fjord1.Int.API.Workers
 {
-    public class MoveXML : Worker, IWorkerSettings<WorkerSettings>
+    public class MoveXML : Worker<WorkerParameters, WorkerSettings>
     {
-        private readonly ILogger<Worker> _workerLogger;
         private readonly WorkerSettings _settings;
-        public Type SettingsType => typeof(WorkerSettings);
-        //public Type ParametersType => typeof(ParameterType);
+        private readonly ILogger<Task> _workerLogger;
+        private readonly IGetHttpClient _getHttpClient;
 
-        public MoveXML(ILogger<Worker> workerLogger, WorkerSettings WorkerSettings)
+        public MoveXML(ILogger<Task> _workerLogger, WorkerSettings _settings, IGetHttpClient _getHttpClient)
         {
-            _workerLogger = workerLogger;
-            _settings = WorkerSettings;
+            this._settings = _settings;
+            this._workerLogger = _workerLogger;
+            this._getHttpClient = _getHttpClient;
         }
 
         public List<string> filetobestyled;
         private string taxPercent;
 
-        public override async Task<JobResult> Execute()
+        public override async Task<JobResult> Execute(WorkerParameters parameters)
         {
             var files = Directory.GetFiles(_settings.IncomingPath, "*.xml", SearchOption.TopDirectoryOnly);
             XmlDocument doc = new XmlDocument();
@@ -91,12 +92,12 @@ namespace Fjord1.Int.API.Workers
 
                             if (xmlc.VendorRef.IsNumeric())
                             {
-                                using IDbConnection dbConnectionUBW = _settings.UBWDbConnection.CreateConnection();
-                                dbConnectionUBW.Open();
+                                //using IDbConnection dbConnectionUBW = _settings.UBWDbConnection.CreateConnection();
+                                //dbConnectionUBW.Open();
                                 var SQLStringSelectOrder = @"Select ACCOUNTABLE, ORDER_ID, Estimated_amount
                                                             From A1AR_APOREADY
                                                             Where status='O' and Order_id = @VendorRef";
-                                foreach (var value in dbConnectionUBW.Query<A1ar_apoready>(SQLStringSelectOrder, new { xmlc.VendorRef }))
+                                foreach (var value in dbConnectionAmos.Query<A1ar_apoready>(SQLStringSelectOrder, new { xmlc.VendorRef }))
                                 {
                                     if (!string.IsNullOrEmpty(value.Accountable)) // i.e. order found in Apoready
                                     {
@@ -195,7 +196,8 @@ namespace Fjord1.Int.API.Workers
         public JobResult ProcessAmosInvoice(string file, string orderId, double orderValue, double Amount, double AmountV, string VendorRef, string InvoiceId, double InvoiceAmt, string CurrencyCode, string DueDate, string VendorDate)
         {
             _workerLogger.LogInformation("Processing Amos Voucher...");
-            using IDbConnection dbConnectionUBW = _settings.UBWDbConnection.CreateConnection();
+            using IDbConnection dbConnectionAmos = _settings.AmosDbConnection.CreateConnection();
+            dbConnectionAmos.Open();
 
             var filename = Path.GetFileName(file);
             var orderStatus = 'R';
@@ -220,8 +222,8 @@ namespace Fjord1.Int.API.Workers
                                     When not Matched by Target
                                     Then Insert (accountable, order_id, status, last_update, client, apar_id, responsible, estimated_amount, order_date, invoice_no, invoice_amount, filename, duedate, voucher_date, currency)
                                          Values( 'AMOS', S.order_id, @orderStatus, getdate(), '50', S.apar_id, S.responsible, S.estimated_amount, S.order_date, @InvoiceId, @Amount, @filename, @DueDate, @VendorDate, @CurrencyCode);";
-            
-            dbConnectionUBW.Execute(SQLStringInsert, new { order_id = orderId, InvoiceId, Amount, filename, DueDate, orderStatus, VendorDate, CurrencyCode });
+
+            dbConnectionAmos.Execute(SQLStringInsert, new { order_id = orderId, InvoiceId, Amount, filename, DueDate, orderStatus, VendorDate, CurrencyCode });
             var OrderID = GetOrderId(VendorRef);
             var VATAmount = AmountV - Amount;
             var taxCode = "0";
@@ -257,7 +259,7 @@ namespace Fjord1.Int.API.Workers
 
             try
             {
-                using IDbConnection dbConnectionAmos = _settings.AmosDbConnection.CreateConnection();
+                //using IDbConnection dbConnectionAmos = _settings.AmosDbConnection.CreateConnection();
                 //_workerLogger.LogInformation(@$"A1ATE_MoveFAKFromAgressoData: '{VendorDate}', '{InvoiceId}', '{CurrencyCode}', {Amount}, '{DueDate}', {OrderID}, {VATAmount},'{taxCode}',{taxPercent}");
                 var SQLStringExec2 = $"Exec Amos.A1ATE_MoveFAKFromAgressoData '{VendorDate}', '{InvoiceId}', '{CurrencyCode}', {Amount}, '{DueDate}', {OrderID}, {VATAmount},'{taxCode}',{taxPercent}";
                 dbConnectionAmos.Execute(SQLStringExec2);

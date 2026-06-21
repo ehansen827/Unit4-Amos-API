@@ -1,49 +1,62 @@
-﻿using A1AR.SVC.Worker.Lib.Common;
-using Microsoft.Extensions.Logging;
-using System;
-using System.IO;
+﻿using System;
+using System.Collections.Generic;
 using System.Data;
-using System.Threading.Tasks;
-using Dapper;
+using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Sockets;
+using System.Threading.Tasks;
+using A1AR.SVC.Worker.Lib.Common;
+using Dapper;
 using Fjord1.Int.API.Models.DB;
+using Fjord1.Int.API.Services;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 
 namespace Fjord1.Int.API.Workers
 {
-    public class MissingInv : Worker, IWorkerSettings<WorkerSettings>
-	{
-        private readonly ILogger<Worker> _workerLogger;
-		private readonly WorkerSettings _settings;
-        public Type SettingsType => typeof(WorkerSettings);
+    public class MissingInv : Worker<WorkerParameters, WorkerSettings>
+    {
+        private readonly WorkerSettings _settings;
+        private readonly ILogger<Task> _workerLogger;
+        private readonly IGetHttpClient _getHttpClient;
 
-        public MissingInv(ILogger<Worker> workerLogger, WorkerSettings WorkerSettings)
-		{
-			_workerLogger = workerLogger;
-			_settings = WorkerSettings;
+        public MissingInv(ILogger<Task> _workerLogger, WorkerSettings _settings, IGetHttpClient _getHttpClient)
+        {
+            this._settings = _settings;
+            this._workerLogger = _workerLogger;
+            this._getHttpClient = _getHttpClient;
         }
 
-		public override async Task<JobResult> Execute()
+        public override async Task<JobResult> Execute(WorkerParameters parameters)
 		{
             var files = Directory.GetFiles(_settings.HoldingPath, "*.xml", SearchOption.TopDirectoryOnly);
-  
+            var ubwClient = _getHttpClient.CreateUBW(_settings);
+
             foreach (string file in files)
             {
                 var filename = Path.GetFileName(file);
                 var creation = File.GetCreationTime(file);
 
-                using IDbConnection dbConnectionUBW = _settings.UBWDbConnection.CreateConnection();
+                using IDbConnection dbConnectionAmos = _settings.AmosDbConnection.CreateConnection();
+                dbConnectionAmos.Open();
 
-                dbConnectionUBW.Open();
-                var SQLStringSelectOrder = @"SELECT TOP 1 apo.order_id as Order_id, a.invoice_no FROM A1AR_APOREADY a
-                                            JOIN apoheader apo ON CONVERT(varchar, a.order_id) = CONVERT(VARCHAR, apo.ext_ord_ref) 
-                                                AND CONVERT(VARCHAR, a.invoice_no) = CONVERT(VARCHAR, apo.text1)
+                var SQLStringSelectOrder = @"SELECT TOP 1 apo.order_id as Order_id, a.invoice_no 
+                                            FROM A1AR_APOREADY a
                                             WHERE a.accountable = 'AMOS' AND a.filename = @filename";
 
-                foreach (var Order in dbConnectionUBW.Query<A1ar_apoready>(SQLStringSelectOrder, new { filename }))
+                var order = dbConnectionAmos.QuerySingle<A1ar_apoready>(SQLStringSelectOrder, new { filename });
+                if (!string.IsNullOrEmpty(order.Order_id))
                 {
-                    if (!string.IsNullOrEmpty(Order.Order_id))
+                    var url = $"{_settings.ApiUBWOrder}'{order.Order_id}'".TrimStart('/');
+                    HttpResponseMessage dataresponse = await ubwClient.GetAsync(url);
+                    HttpContent content = dataresponse.Content;
+                    var Json = await content.ReadAsStringAsync();
+                    var value = JsonConvert.DeserializeObject<List<UBWOrder>>(Json);
+
+                    if (value.Count() > 0)
                     {
-                        _workerLogger.LogInformation($"Invoice {Order.invoice_no} moved: {filename} from {creation} belongs to UBW order {Order.Order_id}.");
+                        _workerLogger.LogInformation($"Invoice {order.invoice_no} moved: {filename} from {creation} belongs to UBW order {order.Order_id}.");
                         File.Move($"{_settings.HoldingPath}{filename}", $"{_settings.RootPath}{filename}");
                     }
                 }

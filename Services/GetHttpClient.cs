@@ -19,7 +19,7 @@ namespace Fjord1.Int.API.Services
         {
             var username = _settings.UserNameUBW;
             var password = _settings.PasswordUBW;
-            var baseUrl = _settings.BaseUri;
+            var baseUrl  = _settings.BaseUri;
 
             var client = new HttpClient();
             Uri baseUri = new Uri(baseUrl);

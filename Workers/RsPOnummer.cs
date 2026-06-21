@@ -43,7 +43,8 @@ namespace Fjord1.Int.API.Workers
                 for (int i = 0; i < rsClient.Length; i++)
                 {
                     var ubwClient = _getHttpClient.CreateUBW(_settings);
-                    HttpResponseMessage clientresponse = await ubwClient.GetAsync($"{_settings.ApiClient}'{rsClient[i]}'");
+                    var url = $"{_settings.ApiClient}'{rsClient[i]}'".TrimStart('/');
+                    HttpResponseMessage clientresponse = await ubwClient.GetAsync(url);
                     HttpContent clientcontent = clientresponse.Content;
                     var Json1 = await clientcontent.ReadAsStringAsync();
                     var clients = JsonConvert.DeserializeObject<Clients[]>(Json1);
@@ -84,11 +85,11 @@ namespace Fjord1.Int.API.Workers
             using (IDbConnection dbConnectionATE = _settings.ATEDbConnection.CreateConnection())
             {
                 dbConnectionATE.Open();
-                var SQLStringGetRun = @"Select max(ti.ExecutionFinish)
-                                      From [A1TASKENGINE].[ATE].[TaskInstances] ti
-                                      Inner join [A1TASKENGINE].[ATE].[TaskInstances] td on td.TaskDefinitionId = ti.TaskDefinitionId 
-                                      Where ti.result = 1 
-                                      and td.Id = @taskId";
+                var SQLStringGetRun = @"SELECT max(ti.ExecutionFinish)
+                                    FROM ATE.TaskInstances ti
+                                    INNER JOIN ATE.TaskInstances td on td.TaskDefinitionId = ti.TaskDefinitionId 
+                                    WHERE ti.result = 1 
+                                    AND td.Id = @taskId";
                 var res = dbConnectionATE.ExecuteScalar<DateTime>(SQLStringGetRun, new { taskId }).ToString("yyyy-MM-dd HH:mm");
                 return Convert.ToDateTime(res);
             }

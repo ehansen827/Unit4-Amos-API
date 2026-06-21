@@ -266,12 +266,12 @@ namespace CLI
                 {
                     AmosDbConnection = new CLI.ConnectionFactory(options.ConnectString),
                 })
-                .AddWorkers()
-                .AddLogging(config => config
+				//.AddWorkers()
+				.AddLogging(config => config
 						.ClearProviders()
 						.AddConsole()
 						.SetMinimumLevel(LogLevel.Debug))
-                .BuildServiceProvider();
-        }
+				.BuildServiceProvider();
+		}
     }
 }

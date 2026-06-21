@@ -1,27 +1,34 @@
-﻿using A1AR.SVC.Worker.Lib.Common;
-using Microsoft.Extensions.Logging;
-using System;
-using System.IO;
+﻿using System;
+using System.Collections.Generic;
 using System.Data;
+using System.IO;
+using System.Net.Http;
+using System.Net.Sockets;
+using System.Reflection.PortableExecutable;
 using System.Threading.Tasks;
+using A1AR.SVC.Worker.Lib.Common;
 using Dapper;
 using Fjord1.Int.API.Models.DB;
+using Fjord1.Int.API.Services;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 
 namespace Fjord1.Int.API.Workers
 {
-    public class MoveInv : Worker, IWorkerSettings<WorkerSettings>
-	{
-        private readonly ILogger<Worker> _workerLogger;
-		private readonly WorkerSettings _settings;
-        public Type SettingsType => typeof(WorkerSettings);
+    public class MoveInv : Worker<WorkerParameters, WorkerSettings>
+    {
+        private readonly WorkerSettings _settings;
+        private readonly ILogger<Task> _workerLogger;
+        private readonly IGetHttpClient _getHttpClient;
 
-        public MoveInv(ILogger<Worker> workerLogger, WorkerSettings WorkerSettings)
-		{
-			_workerLogger = workerLogger;
-			_settings = WorkerSettings;
+        public MoveInv(ILogger<Task> _workerLogger, WorkerSettings _settings, IGetHttpClient _getHttpClient)
+        {
+            this._settings = _settings;
+            this._workerLogger = _workerLogger;
+            this._getHttpClient = _getHttpClient;
         }
 
-		public override async Task<JobResult> Execute()
+        public override async Task<JobResult> Execute(WorkerParameters parameters)
 		{
             var delay = _settings.DelayLG04;
             var include = _settings.IncludeLG04;
@@ -29,32 +36,33 @@ namespace Fjord1.Int.API.Workers
             using IDbConnection dbConnectionAmos = _settings.AmosDbConnection.CreateConnection();
             try
             {
+                //delay = -7;
+                //include = 1;
                 dbConnectionAmos.Open();
-                var SQLStringSelectOrder = @"Select FormNo, InvoiceNo 
-                                            From [amos].[A1AR_OrderInvoice]
-                                            Where date > DATEADD(DAY, @delay, CAST(GETDATE() AS Date)) and date < DATEADD(DAY, @include, CAST(GETDATE() AS Date))";
+                var SQLStringSelectOrder = @"SELECT apr.filename AS Filename, oi.formno AS FormNo, oi.invoiceno AS InvoiceNo
+                                            FROM A1AR_OrderInvoice oi
+                                            JOIN a1ar_apoready apr ON CAST(apr.order_id AS varchar) = CAST(oi.formno AS varchar) AND apr.invoice_no = oi.invoiceno
+                                            WHERE oi.date > DATEADD(DAY, @delay, CAST(GETDATE() AS Date)) AND oi.date < DATEADD(DAY, @include, CAST(GETDATE() AS Date))";
                 var Orders = dbConnectionAmos.Query<OrderInvoice>(SQLStringSelectOrder, new { delay, include }, commandTimeout: 1000);
-                using IDbConnection dbConnectionUBW = _settings.UBWDbConnection.CreateConnection();
+                var ubwClient = _getHttpClient.CreateUBW(_settings);
                 try
                 {
-                    dbConnectionUBW.Open();
-                    var SQLStringSelectFilename = @"select filename from A1AR_APOREADY a
-                                                    right join apoheader apo on convert(varchar, a.order_id) = convert(varchar, apo.ext_ord_ref) and convert(varchar, a.invoice_no) = convert(varchar, apo.text1)
-                                                    Where a.accountable = 'AMOS' 
-                                                    and a.Invoice_no = @InvoiceNo
-                                                    and a.Order_id = @FormNo";
                     foreach (var Order in Orders)
                     {
-                        var Filename = dbConnectionUBW.ExecuteScalar(SQLStringSelectFilename, new { Order.InvoiceNo, Order.FormNo }, commandTimeout: 1000);
+                        var url = $"{_settings.ApiMoveInv}'{Order.FormNo}'%20and%20text1%20eq%20'{Order.InvoiceNo}'".TrimStart('/');
+                        HttpResponseMessage dataresponse = await ubwClient.GetAsync(url);
+                        HttpContent content = dataresponse.Content;
+                        var Json = await content.ReadAsStringAsync();
+                        var values = JsonConvert.DeserializeObject<List<OrderInvoice>>(Json);
 
-                        if (Filename != null)
+                        if (values != null)
                         {
-                            if (File.Exists($"{_settings.HoldingPath}{Path.GetFileName(Filename.ToString())}") && (!File.Exists($"{_settings.RootPath}{Path.GetFileName(Filename.ToString())}")))
+                            if (File.Exists($"{_settings.HoldingPath}{Path.GetFileName(Order.Filename.ToString())}") && (!File.Exists($"{_settings.RootPath}{Path.GetFileName(Order.Filename.ToString())}")))
                             {
-                                _workerLogger.LogInformation("Moving invoice " + Filename);
-                                File.Move($"{_settings.HoldingPath}{Filename}", $"{_settings.RootPath}{Filename}");
-                                File.Copy($"{_settings.RootPath}{Filename}", $"{_settings.FraEHF}{Filename}");
-                                _workerLogger.LogInformation("Done moving invoice " + Filename);
+                                _workerLogger.LogInformation("Moving invoice " + Order.Filename);
+                                File.Move($"{_settings.HoldingPath}{Order.Filename}", $"{_settings.RootPath}{Order.Filename}");
+                                File.Copy($"{_settings.RootPath}{Order.Filename}", $"{_settings.FraEHF}{Order.Filename}");
+                                _workerLogger.LogInformation("Done moving invoice " + Order.Filename);
                             }
                         }
                     }

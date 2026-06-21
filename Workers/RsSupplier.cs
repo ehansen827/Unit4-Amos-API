@@ -39,19 +39,20 @@ namespace Fjord1.Int.API.Workers
 
                     for (int i = 0; i < rsClient.Length; i++)
                     {
-                        HttpResponseMessage clientresponse = await ubwClient.GetAsync($"{_settings.ApiClient}'{rsClient[i]}'");
+                        var url = $"{_settings.ApiClient}'{rsClient[i]}'".TrimStart('/');
+                        HttpResponseMessage clientresponse = await ubwClient.GetAsync(url);
                         HttpContent clientcontent = clientresponse.Content;
                         var Json1 = await clientcontent.ReadAsStringAsync();
                         var clients = JsonConvert.DeserializeObject<Clients[]>(Json1);
 
-                        HttpResponseMessage dataresponse = await ubwClient.GetAsync($"{_settings.ApiSupplier}'{rsClient[i]}'");
+                        url = $"{_settings.ApiSupplier}'{rsClient[i]}'".TrimStart('/');
+                        HttpResponseMessage dataresponse = await ubwClient.GetAsync(url);
                         HttpContent content = dataresponse.Content;
                         var Json2 = await content.ReadAsStringAsync();
                         var suppliers = JsonConvert.DeserializeObject<List<Supplier>>(Json2);
 
                         if (suppliers != null && clients != null && clients.Length > 0 && !string.IsNullOrEmpty(clients[0].ClientName))
                         {
-
                             DirectoryInfo directory = Directory.CreateDirectory(_settings.RsPath + clients[0].ClientName + "\\");
                             string filename = _settings.RsFilename;
                             XmlTextWriter xmlWriter = new XmlTextWriter(directory + filename, Encoding.UTF8);
@@ -97,11 +98,11 @@ namespace Fjord1.Int.API.Workers
             using (IDbConnection dbConnectionATE = _settings.ATEDbConnection.CreateConnection())
             {
                 dbConnectionATE.Open();
-                var SQLStringGetRun = @"Select max(ti.ExecutionFinish)
-                                      From [A1TASKENGINE].[ATE].[TaskInstances] ti
-                                      Inner join [A1TASKENGINE].[ATE].[TaskInstances] td on td.TaskDefinitionId = ti.TaskDefinitionId 
-                                      Where ti.result = 1 
-                                      and td.Id = @taskId";
+                var SQLStringGetRun = @"SELECT max(ti.ExecutionFinish)
+                                    FROM ATE.TaskInstances ti
+                                    INNER JOIN ATE.TaskInstances td on td.TaskDefinitionId = ti.TaskDefinitionId 
+                                    WHERE ti.result = 1 
+                                    AND td.Id = @taskId";
                 var res = dbConnectionATE.ExecuteScalar<DateTime>(SQLStringGetRun, new { taskId }).ToString("yyyy-MM-dd HH:mm");
                 return Convert.ToDateTime(res);
             }

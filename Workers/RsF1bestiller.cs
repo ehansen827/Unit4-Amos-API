@@ -35,16 +35,20 @@ namespace Fjord1.Int.API.Workers
                 {
                     //var LastSuccessFulRun = LastSucessfulRun(this.JobInstance.Id).ToString("yyyy-MM-dd HH:mm");
                     //if (!string.IsNullOrEmpty(_settings.LastUpdated)) LastSuccessFulRun = _settings.LastUpdated;
+                    //_workerLogger.LogInformation($"BaseAddress: " + ubwClient.BaseAddress);
                     string[] rsClient = _settings.RsClient;
 
                     for (int i = 0; i < rsClient.Length; i++)
                     {
-                        HttpResponseMessage clientresponse = await ubwClient.GetAsync($"{_settings.ApiClient}'{rsClient[i]}'"); 
+                        var url = $"{_settings.ApiClient}'{rsClient[i]}'".TrimStart('/');
+                        HttpResponseMessage clientresponse = await ubwClient.GetAsync(url); // /v1/objects/osgubwclients?filter=client%20eq%20'50'
                         HttpContent clientcontent = clientresponse.Content;
                         var Json1 = await clientcontent.ReadAsStringAsync();
                         var clients = JsonConvert.DeserializeObject<Clients[]>(Json1);
 
-                        HttpResponseMessage dataresponse = await ubwClient.GetAsync($"{_settings.ApiBestiller}'{rsClient[i]}'");
+                        url = $"{_settings.ApiBestiller}'{rsClient[i]}'".TrimStart('/');
+                        HttpResponseMessage dataresponse = await ubwClient.GetAsync(url); // /v1/objects/osgrsf1bestillers?filter=client%20eq%20'50'
+
                         HttpContent content = dataresponse.Content;
                         var Json2 = await content.ReadAsStringAsync();
                         var bestillere = JsonConvert.DeserializeObject<List<Bestiller>>(Json2);
@@ -88,22 +92,14 @@ namespace Fjord1.Int.API.Workers
             using (IDbConnection dbConnectionATE = _settings.ATEDbConnection.CreateConnection())
             {
                 dbConnectionATE.Open();
-                var SQLStringGetRun = @"Select max(ti.ExecutionFinish)
-                                      From [A1TASKENGINE].[ATE].[TaskInstances] ti
-                                      Inner join [A1TASKENGINE].[ATE].[TaskInstances] td on td.TaskDefinitionId = ti.TaskDefinitionId 
-                                      Where ti.result = 1 
-                                      and td.Id = @taskId";
+                var SQLStringGetRun = @"SELECT max(ti.ExecutionFinish)
+                                    FROM ATE.TaskInstances ti
+                                    INNER JOIN ATE.TaskInstances td on td.TaskDefinitionId = ti.TaskDefinitionId 
+                                    WHERE ti.result = 1 
+                                    AND td.Id = @taskId";
                 var res = dbConnectionATE.ExecuteScalar<DateTime>(SQLStringGetRun, new { taskId }).ToString("yyyy-MM-dd HH:mm");
                 return Convert.ToDateTime(res);
             }
-        }
-        public class Bestiller
-        {
-            public string Active { get; set; }
-            public string Client { get; set; }
-            public string Description { get; set; }
-            public string Name { get; set; }
-            public string Value { get; set; }
         }
     }
 }

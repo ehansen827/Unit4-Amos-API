@@ -1,102 +1,74 @@
-﻿using A1AR.SVC.Worker.Lib.Common;
-using Microsoft.Extensions.Logging;
-using System;
+﻿using System;
+using System.Collections.Generic;
 using System.Data;
+using System.Net.Http;
+using System.Net.Sockets;
 using System.Threading.Tasks;
+using A1AR.SVC.Worker.Lib.Common;
 using Dapper;
-using Fjord1.Int.API.Utilities;
 using Fjord1.Int.API.Models.DB;
+using Fjord1.Int.API.Services;
+using Fjord1.Int.API.Utilities;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 
 namespace Fjord1.Int.API.Workers    
 {
-    public class SupplierSync : Worker, IWorkerSettings<WorkerSettings>
+    public class SupplierSync : Worker<WorkerParameters, WorkerSettings>
     {
-        private readonly ILogger<Worker> _workerLogger;
         private readonly WorkerSettings _settings;
-        public Type SettingsType => typeof(WorkerSettings);
+        private readonly ILogger<Task> _workerLogger;
+        private readonly IGetHttpClient _getHttpClient;
 
-        public SupplierSync(ILogger<Worker> workerLogger, WorkerSettings WorkerSettings)
+        public SupplierSync(ILogger<Task> _workerLogger, WorkerSettings _settings, IGetHttpClient _getHttpClient)
         {
-            _workerLogger = workerLogger;
-            _settings = WorkerSettings;
+            this._settings = _settings;
+            this._workerLogger = _workerLogger;
+            this._getHttpClient = _getHttpClient;
         }
 
-        public override async Task<JobResult> Execute()
+        public override async Task<JobResult> Execute(WorkerParameters parameters)
         {
             try
             {
-                using IDbConnection dbConnectionUBW = _settings.UBWDbConnection.CreateConnection();
-                dbConnectionUBW.Open();
+                var LastSuccessfulRun = "2025-05-31";
+                //var LastSuccessfulRun = _settings.LastSucessfulRun(this.JobInstance.Id).ToString("yyyy-MM-dd HH:mm");
+                _workerLogger.LogInformation($"Last updated: {LastSuccessfulRun}");
+                if (!string.IsNullOrEmpty(_settings.LastUpdated)) LastSuccessfulRun = _settings.LastUpdated;
+                if (_settings.FullSync is true) LastSuccessfulRun = "1999-01-01";
+                _workerLogger.LogInformation($"Synchronizing supplier information updated since " + LastSuccessfulRun);
 
-                var LastSuccessFulRun = _settings.LastSucessfulRun(this.JobInstance.Id).ToString("yyyy-MM-dd HH:mm");
-                _workerLogger.LogInformation($"Last updated: {LastSuccessFulRun}");
-                if (!string.IsNullOrEmpty(_settings.LastUpdated)) LastSuccessFulRun = _settings.LastUpdated;
-                if (_settings.FullSync is true) LastSuccessFulRun = "1999-01-01";
-                _workerLogger.LogInformation($"Synchronizing supplier information updated since " + LastSuccessFulRun);
+                var ubwClient = _getHttpClient.CreateUBW(_settings);
+                var url = $"{_settings.ApiSuppSync}{LastSuccessfulRun}".TrimStart('/'); 
+                HttpResponseMessage dataresponse = await ubwClient.GetAsync(url);
+                HttpContent content = dataresponse.Content;
+                var Json2 = await content.ReadAsStringAsync();
+                var suppliers = JsonConvert.DeserializeObject<List<SyncSup>>(Json2);
 
-                var SQLSelectSup = @$"SELECT apar_id, apar_name, asu.status, amosadr.addressid, amosadr.name, amosadr.gradeid, amosgra.descr,
-                                    CASE
-                                     WHEN amosadr.addressid is null THEN 'Yes' ELSE 'No'
-                                    END AS New, 
-                                    CASE	
-                                     WHEN status = 'N' AND amosgra.gradeid != 1000001 THEN 'Yes' 
-                                     WHEN status = 'P' AND amosgra.gradeid != 1000002 THEN 'Yes' 
-                                     WHEN status = 'C' AND amosgra.gradeid != 1000003 THEN 'Yes' 
-                                     ELSE 'No' 
-                                    END AS Updated 
-                                    FROM [dbo].[asuheader] asu 
-                                    LEFT JOIN {_settings.SQLInjection}.[amos].[Address] amosadr ON asu.apar_id = amosadr.addressid
-                                    LEFT JOIN {_settings.SQLInjection}.[amos].qagrading amosgra ON amosadr.gradeid = amosgra.gradeid
-                                    WHERE client in ('50')
-                                    AND asu.last_update >= @LastSuccessFulRun
-                                    ";
-
-                #region Connection to test:
-                //var SQLSelectSup = @"SELECT apar_id, apar_name, asu.status, amosadr.addressid, amosadr.name, amosadr.gradeid, amosgra.descr,
-                //                    CASE
-                //                     WHEN amosadr.addressid is null THEN 'Yes' ELSE 'No'
-                //                    END AS New, 
-                //                    CASE	
-                //                     WHEN status = 'N' AND amosgra.gradeid != 1000001 THEN 'Yes' 
-                //                     WHEN status = 'P' AND amosgra.gradeid != 1000002 THEN 'Yes' 
-                //                     WHEN status = 'C' AND amosgra.gradeid != 1000003 THEN 'Yes' 
-                //                     ELSE 'No' 
-                //                    END AS Updated 
-                //                    FROM [dbo].[asuheader] asu 
-                //                    LEFT JOIN [TAmosDB].[Amos93].[amos].[Address] amosadr ON asu.apar_id = amosadr.addressid
-                //                    LEFT JOIN [TAmosDB].[Amos93].[amos].qagrading amosgra ON amosadr.gradeid = amosgra.gradeid
-                //                    WHERE client = '50' 
-                //                    AND asu.last_update >= @LastSuccessFulRun
-                //                    "; 
-                #endregion
-
-                var SQLUpdateAdr = @"UPDATE Address
+                if (suppliers != null)
+                {
+                    var SQLUpdateAdr1 = @"UPDATE Address
                                     SET gradeid = @gradeid
                                     WHERE addressid = @apar_id ";
-                var SQLUpdateAdr2 = @"UPDATE Address
+                    var SQLUpdateAdr2 = @"UPDATE Address
                                     SET portalID = 3000001, Outputformat = 4
                                     WHERE addressid = @apar_id AND portalID IS NULL";
+                    var gradeid = 0;
 
-                var gradeid = 0;
+                    using IDbConnection dbConnectionAmos = _settings.AmosDbConnection.CreateConnection();
+                    dbConnectionAmos.Open();
 
-                foreach (var value in dbConnectionUBW.Query<SyncSup>(SQLSelectSup, new { LastSuccessFulRun }))
-                {
-                    _workerLogger.LogInformation("Processing supplier " + value.apar_name );
-
-                    if(value.Updated == "Yes")
+                    foreach (var supplier in suppliers)
                     {
-                        using IDbConnection dbConnectionAmos = _settings.AmosDbConnection.CreateConnection();
-                        dbConnectionAmos.Open();
+                        _workerLogger.LogInformation("Updating supplier " + supplier.SupplierName);
+                        if (supplier.Status == "N") gradeid = 1000001;
+                        if (supplier.Status == "P") gradeid = 1000002;
+                        if (supplier.Status == "C") gradeid = 1000003;
 
-                        _workerLogger.LogInformation("Updating supplier " + value.apar_name);
-                        if (value.status == "N") gradeid = 1000001;
-                        if (value.status == "P") gradeid = 1000002;
-                        if (value.status == "C") gradeid = 1000003;
-
-                        dbConnectionAmos.Execute(SQLUpdateAdr, new { value.apar_id, gradeid });
-                        dbConnectionAmos.Execute(SQLUpdateAdr2, new { value.apar_id, gradeid });
-                        dbConnectionAmos.Close();
+                        dbConnectionAmos.Execute(SQLUpdateAdr1, new { supplier.SupplierId, gradeid });
+                        dbConnectionAmos.Execute(SQLUpdateAdr2, new { supplier.SupplierId });
                     }
+                    dbConnectionAmos.Close();
                 }
             }
             catch (Exception ex)
