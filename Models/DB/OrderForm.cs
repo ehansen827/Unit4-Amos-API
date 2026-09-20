@@ -30,7 +30,7 @@ namespace Fjord1.Int.API.Models.DB
         public string ApprovedBy { get; set; }
         public DateTime OrderedDate { get; set; }
         public double InvoiceTotal { get; set; }
-        public int WorkFlowStatusID { get; set; }
+        public long WorkFlowStatusID { get; set; }
         public int InstCode { get; set; }
         public string InstName { get; set; }
         public int FormStatus { get; set; }

@@ -54,9 +54,9 @@ namespace Fjord1.Int.API
 		public string ApiSyncProj { get; set; } = "/v1/objects/osgsyncprojs?companyId=50";
 		public string ApiAccounts { get; set; } = "/v1/objects/osgaccountss?companyId=50";
 		public string ApiProjects { get; set; } = "/v1/objects/osgprojectss?companyId=50";
-        //public string username { get; set; } = "haneri";
-        //public string password { get; set; } ="Ymmu!726";
-        //public string apiBaseUrl = "https://ubw.unit4cloud.com/no_fj1_prod_webapi"; 
+        public string ApiPO { get; set; } = "/v1/objects/purchase-orders?companyId=50&limit=10";
+		public string apiBaseUrl { get; set; } = "https://ubw.unit4cloud.com/no_fj1_prod_webapi";
+		public string CsvDirectory { get; set; }
 
     }
 }

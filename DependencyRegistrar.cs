@@ -1,11 +1,16 @@
-﻿using System.Net.NetworkInformation;
+﻿using System.IO;
+using System.Net.NetworkInformation;
+using System.Text.Json;
 using A1AR.SVC.Worker.Lib.Common;
 using A1AR.SVC.Worker.Lib.DependencyInjection;
+using CsvHelper;
+
 //using A1AR.Utilities.Database;
 //using A1AR.Utilities.Helpers;
 using Fjord1.Int.API.Services;
 using Fjord1.Int.API.Workers;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Fjord1.Int.API
 {
@@ -43,6 +48,11 @@ namespace Fjord1.Int.API
                 //.UseTimer()
                 //.UseChangeDetector()
                 //.UseWorkerMutex()
+                 
+                .AddTransient<Pocsv>()
+                //.AddScoped<StreamWriter>()
+                //.AddScoped<EnumerateArray>()
+                .AddScoped<JsonDocument>()
                 .AddScoped<FinalTot>()
                 .AddScoped<MissingInv>()
                 .AddScoped<MoveInv>()
@@ -60,6 +70,8 @@ namespace Fjord1.Int.API
                 .AddScoped<SyncApoready>()
                 .AddScoped<SyncProjects>()
                 .AddScoped<IGetHttpClient, GetHttpClient>()
+                //.AddScoped<ILogger<Worker>, Logger<Worker>>()
+                //.AddScoped<IHttpClientFactory, HttpClientFactory>()
                 //.AddScoped<IUbwRepository, UbwRepository>()
                 //.AddScoped<IRest, Rest>()
                 //.AddScoped(typeof(IMasterDataPusher<>), typeof(MasterDataPusher<>))

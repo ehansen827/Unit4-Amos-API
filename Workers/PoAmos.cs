@@ -461,6 +461,17 @@ namespace Fjord1.Int.API.Workers
                                     AND invoice_no = @Reference
                                     AND Order_id = @FormNo";
                 dbConnectionAmos.Execute(SQLUpdateApor, new { po.FormNo, po.Reference, po.ApprovedBy, po.ApprovedDate }, commandTimeout: 60 * 60);
+
+                var SQLUpdateApor2 = @"UPDATE a
+                                    SET a.status = 'A'
+                                    FROM a1ar_apoready a
+                                    JOIN OrderForm b 
+	                                    ON b.FormNo = CAST(a.order_id AS varchar)
+                                    JOIN voucher v
+	                                    ON v.OrderID = b.OrderID
+	                                    AND FinalInvoice = 1
+                                    WHERE b.FormNo = @FormNo";
+                dbConnectionAmos.Execute(SQLUpdateApor2, new { po.FormNo }, commandTimeout: 60 * 60);
             }
             return JobResult.Success("OK");
         }

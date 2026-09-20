@@ -33,6 +33,8 @@ namespace Fjord1.Int.API.Workers
             try
             {
                 using IDbConnection dbConnectionAmos = _settings.AmosDbConnection.CreateConnection();
+                //using var ubwClient = _getHttpClient.CreateUBW(_settings);
+
                 dbConnectionAmos.Open();
                 _workerLogger.LogInformation("Connected to Amos, clearing repository...");
                 var SQLStringDelete0 = "Delete from Amos.A1ATE_Accounts ";
@@ -40,13 +42,16 @@ namespace Fjord1.Int.API.Workers
                 var SQLStringDelete = "Delete from Amos.A1ATE_ReposPA ";
                 dbConnectionAmos.Execute(SQLStringDelete);
 
-                var ubwClient = _getHttpClient.CreateUBW(_settings);
+                using var ubwClient = _getHttpClient.CreateUBW(_settings);
+
                 // Process Accounts:
-                var url = $"{_settings.ApiAccounts}";
+                var url = $"{_settings.BaseUri}{_settings.ApiAccounts}";
+                //_workerLogger.LogInformation($"Calling API for Accounts: {url}");
                 using (HttpResponseMessage dataresponse = await ubwClient.GetAsync(url))
                 {
                     HttpContent content = dataresponse.Content;
                     var Json = await content.ReadAsStringAsync();
+                    _workerLogger.LogInformation($"Accounts JSON: {Json}");
                     var accounts = JsonConvert.DeserializeObject<List<Accounts>>(Json);
 
                     if (accounts != null)
@@ -61,13 +66,15 @@ namespace Fjord1.Int.API.Workers
                 }
 
                 // Process Projects:
-                url = $"{_settings.ApiProjects}";
+                url = $"{_settings.BaseUri}{_settings.ApiProjects}";
+                //_workerLogger.LogInformation($"Calling API for Projcts: {url}");
+
                 using (HttpResponseMessage dataresponse = await ubwClient.GetAsync(url))
                 {
                     HttpContent content = dataresponse.Content;
                     var Json = await content.ReadAsStringAsync();
                     var projects = JsonConvert.DeserializeObject<List<Projects>>(Json);
-
+                    _workerLogger.LogInformation($"Projects JSON: {Json}"); 
                     if (projects != null)
                     {
                         foreach (var project in projects)
@@ -114,6 +121,14 @@ namespace Fjord1.Int.API.Workers
                         }
                     }
                 }
+                _workerLogger.LogInformation("Disabling expired projects...");
+                var SQLDisableProj = @"UPDATE a
+                                    SET active = 0
+                                    FROM amos.accountcode a
+                                    LEFT JOIN A1ATE_ReposPA ON code = Project
+                                    WHERE project IS NULL";
+                dbConnectionAmos.Execute(SQLDisableProj, commandTimeout: 60 * 60);
+
                 dbConnectionAmos.Close();
             }
             catch (Exception ex)

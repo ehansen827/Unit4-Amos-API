@@ -277,7 +277,7 @@ namespace Fjord1.Int.API.Workers
                     if (!string.IsNullOrEmpty(pdf.VendorRef))
                     {
                         _workerLogger.LogInformation("Inserting attachment " + pdf.FileLocation);
-                        var SQLStringExec4 = $"Exec Amos.A1ATE_FAK_PDF '{pdf.VendorRef}', '{pdf.FileLocation}','{pdf.FileName}'";
+                        var SQLStringExec4 = $"Exec Amos.A1ATE_FAK_PDF '{pdf.VendorRef}', '{pdf.FileLocation}','{InvoiceId}'";
                         dbConnectionAmos.Execute(SQLStringExec4);
                     }
                 }
