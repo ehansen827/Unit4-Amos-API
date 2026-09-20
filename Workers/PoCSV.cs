@@ -95,7 +95,7 @@ namespace Fjord1.Int.API.Workers
 
                 string jsonPayload = await response.Content.ReadAsStringAsync();
 
-                List<PurchaseOrderDto>? orders = JsonConvert.DeserializeObject<List<PurchaseOrderDto>>(jsonPayload);
+                List<PurchaseOrderDto> orders = JsonConvert.DeserializeObject<List<PurchaseOrderDto>>(jsonPayload);
 
                 _workerLogger.LogInformation("starting streamwriter...");
                 await using StreamWriter writer = new StreamWriter(
